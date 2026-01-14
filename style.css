@@ -1,0 +1,103 @@
+body { 
+    font-family: 'Segoe UI', Helvetica, Arial, sans-serif; 
+    background: #f0f2f5; 
+    padding: 10px; 
+    margin: 0;
+}
+
+.container { 
+    max-width: 900px; 
+    margin: auto; 
+    background: white; 
+    padding: 15px; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+}
+
+.title-red { 
+    color: #b40000; 
+    text-align: center; 
+    font-size: 1.3em; 
+    margin-bottom: 5px; 
+    border-bottom: 2px solid #b40000; 
+}
+
+.subtitle { text-align: center; font-size: 0.9em; margin-bottom: 20px; color: #555; }
+
+fieldset { 
+    border: 1px solid #ddd; 
+    border-radius: 10px; 
+    margin-bottom: 15px; 
+    padding: 15px; 
+    background: #fdfdfd; 
+}
+
+legend { font-weight: bold; color: #1a5a8f; font-size: 0.8em; text-transform: uppercase; }
+
+/* Grille adaptative */
+.grid-form { 
+    display: grid; 
+    grid-template-columns: 1fr; /* 1 colonne sur mobile */
+    gap: 12px; 
+}
+
+@media (min-width: 650px) {
+    .grid-form { grid-template-columns: 1fr 1fr; }
+    .container { padding: 30px; }
+}
+
+input, select { 
+    padding: 12px; 
+    border: 1px solid #ccc; 
+    border-radius: 6px; 
+    font-size: 16px; /* Empêche le zoom auto sur iPhone */
+    width: 100%; 
+    box-sizing: border-box; 
+}
+
+.highlight-select { background: #fffdf0; border: 1px solid #f39c12; color: #b40000; font-weight: bold; }
+
+/* Boutons mobiles */
+.button-group { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 8px; 
+}
+
+@media (min-width: 650px) {
+    .button-group { flex-direction: row; flex-wrap: wrap; }
+    .button-group button { flex: 1; }
+}
+
+button { 
+    padding: 15px; 
+    border: none; 
+    border-radius: 8px; 
+    color: white; 
+    font-weight: bold; 
+    font-size: 14px; 
+    cursor: pointer; 
+}
+
+.btn-reset { background: #7f8c8d; }
+.btn-red { background: #c0392b; }
+.btn-green { background: #27ae60; }
+.btn-blue { background: #2980b9; }
+.btn-purple { background: #8e44ad; }
+
+.profession-box, .matrimoniale-box { 
+    background: #ebf2f7; 
+    padding: 10px; 
+    border-radius: 6px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 8px; 
+}
+
+.radio-group { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.9em; }
+
+.date-input { display: flex; flex-direction: column; gap: 4px; }
+.date-input label { font-size: 0.8em; font-weight: bold; color: #666; }
+
+.green-section { border-color: #27ae60; background: #f0fff4; }
+.blue-section { border-color: #2980b9; background: #f0f7ff; }

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PF Solidaire - Mobile</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h2 class="title-red">POMPES FUNÈBRES SOLIDAIRE</h2>
+            <p class="subtitle">Mustapha CHERKAOUI - Perpignan</p>
+        </header>
+
+        <fieldset>
+            <legend>Le Mandant (Signataire)</legend>
+            <div class="grid-form">
+                <input id="soussigne" placeholder="Je soussigné (Nom Prénom)">
+                <input id="demeurant" placeholder="Demeurant (Adresse complète)">
+                <input id="lien" placeholder="Lien de parenté">
+                <input id="nationalite_mandant" placeholder="Nationalité" value="Française">
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Le Défunt</legend>
+            <div class="grid-form">
+                <select id="prestation" class="highlight-select">
+                    <option value="" disabled selected>-- CHOISIR PRESTATION --</option>
+                    <option value="Inhumation">Inhumation</option>
+                    <option value="Exhumation">Exhumation</option>
+                    <option value="Rapatriement">Rapatriement</option>
+                    <option value="Crémation">Crémation</option>
+                    <option value="Transport">Transport</option>
+                </select>
+                <div class="date-input"><label>Prévue le :</label><input id="date_prestation" type="date"></div>
+                <input id="lieu_prestation" placeholder="Lieu (Cimetière / Crématorium)">
+                <input id="nom" placeholder="NOM D'USAGE">
+                <input id="nom_jeune_fille" placeholder="Nom de Jeune Fille">
+                <input id="prenom" placeholder="Prénoms">
+                <select id="sexe"><option value="Masculin">Masculin</option><option value="Féminin">Féminin</option></select>
+                <div class="date-input"><label>Né le :</label><input id="date_naiss" type="date"></div>
+                <input list="villes-monde" id="lieu_naiss" placeholder="Lieu Naissance">
+                <div class="date-input"><label>Décédé le :</label><input id="date_deces" type="date"></div>
+                <input list="villes-monde" id="lieu_deces" placeholder="Lieu du Décès">
+                <input id="adresse_fr" placeholder="Dernier Domicile">
+                
+                <div class="profession-box">
+                    <label>Profession :</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="prof_type" value="Sans profession" onclick="toggleProf(false)"> Sans prof.</label>
+                        <label><input type="radio" name="prof_type" value="Retraité(e)" onclick="toggleProf(false)"> Retraité(e)</label>
+                        <label><input type="radio" name="prof_type" value="autre" onclick="toggleProf(true)" checked> Autre</label>
+                    </div>
+                    <input id="profession_autre" placeholder="Précisez le métier">
+                </div>
+
+                <input id="pere" placeholder="Père (Prénom NOM)">
+                <input id="mere" placeholder="Mère (Prénom NOM)">
+                
+                <div class="matrimoniale-box">
+                    <select id="matrimoniale" onchange="toggleConjoint()">
+                        <option value="Célibataire">Célibataire</option><option value="Marié(e)">Marié(e)</option>
+                        <option value="Veuf(ve)">Veuf(ve)</option><option value="Divorcé(e)">Divorcé(e)</option>
+                    </select>
+                    <input id="conjoint" placeholder="Nom du Conjoint" disabled>
+                </div>
+                <input id="nationalite" value="Française" placeholder="Nationalité">
+            </div>
+        </fieldset>
+
+        <fieldset class="green-section">
+            <legend>Transport Avant Mise en Bière</legend>
+            <div class="grid-form">
+                <input id="immatriculation" placeholder="Immatriculation" value="DA-081-ZQ">
+                <div class="date-input"><label>Départ :</label><input id="date_depart_t" type="date"></div>
+                <div class="date-input"><label>Heure :</label><input id="heure_depart_t" type="time"></div>
+                <input id="lieu_depart_t" placeholder="Lieu de départ">
+                <div class="date-input"><label>Arrivée :</label><input id="date_arrivee_t" type="date"></div>
+                <div class="date-input"><label>Heure :</label><input id="heure_arrivee_t" type="time"></div>
+                <input id="lieu_arrivee_t" placeholder="Lieu d'arrivée">
+            </div>
+        </fieldset>
+
+        <fieldset class="blue-section">
+            <legend>Fermeture</legend>
+            <div class="grid-form">
+                <div class="date-input"><label>Date :</label><input id="date_fermeture" type="date"></div>
+                <input id="lieu_fermeture" placeholder="Lieu (Chambre Fun., Domicile...)">
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Signature</legend>
+            <div class="grid-form">
+                <input id="faita" placeholder="Fait à">
+                <div class="date-input"><label>Le :</label><input id="dateSignature" type="date"></div>
+            </div>
+        </fieldset>
+
+        <div class="button-group">
+            <button onclick="window.location.reload()" class="btn-reset">EFFACER</button>
+            <button onclick="genererPouvoir()" class="btn-red">POUVOIR</button>
+            <button onclick="genererDeclaration()" class="btn-green">DÉCLARATION</button>
+            <button onclick="genererFermeture()" class="btn-blue">FERMETURE</button>
+            <button onclick="genererTransport()" class="btn-purple">TRANSPORT</button>
+        </div>
+    </div>
+    
+    <datalist id="villes-monde">
+        <option value="Perpignan (France)"><option value="Casablanca (Maroc)"><option value="Alger (Algérie)">
+    </datalist>
+
+    <script src="script.js"></script>
+</body>
+</html>
