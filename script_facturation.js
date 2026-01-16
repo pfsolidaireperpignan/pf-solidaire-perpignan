@@ -1,11 +1,8 @@
 /* ==========================================================================
-   MODULE FACTURATION - VERSION FINALE PRO
-   - Numérotation Auto
-   - Réorganisation Lignes (Drag-like)
-   - PDF Centré et Structuré
+   MODULE FACTURATION - DRAG & DROP + SUPPRESSION
    ========================================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, query, orderBy, limit, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // --- VOTRE CONFIGURATION FIREBASE ---
 const firebaseConfig = {
@@ -22,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let clientsCache = [];
-let historyCache = []; // Pour la recherche locale
+let historyCache = [];
 let currentClientId = null;
 let currentInvoiceId = null;
 
@@ -33,6 +30,9 @@ function getVal(id) { const el = document.getElementById(id); return el ? el.val
 window.addEventListener('DOMContentLoaded', async () => {
     const dateInput = document.getElementById('facture_date');
     if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+
+    // Drag & Drop Init
+    initDragAndDrop();
 
     // Charger Clients
     const datalist = document.getElementById('clients-datalist');
@@ -59,6 +59,42 @@ window.addEventListener('DOMContentLoaded', async () => {
     window.ajouterLigne("Cercueil", "NA", 0);
 });
 
+// --- DRAG AND DROP (LOGIQUE) ---
+function initDragAndDrop() {
+    const tbody = document.getElementById('lines-body');
+    
+    tbody.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(tbody, e.clientY);
+        const draggable = document.querySelector('.dragging');
+        if (afterElement == null) {
+            tbody.appendChild(draggable);
+        } else {
+            tbody.insertBefore(draggable, afterElement);
+        }
+    });
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('tr:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+function attachDragEvents(row) {
+    row.setAttribute('draggable', 'true');
+    row.addEventListener('dragstart', () => { row.classList.add('dragging'); });
+    row.addEventListener('dragend', () => { row.classList.remove('dragging'); });
+}
+
 // --- AUTO-COMPLETE CLIENT ---
 window.checkClientAuto = function() {
     const val = getVal('facture_nom');
@@ -75,7 +111,7 @@ window.checkClientAuto = function() {
 };
 
 /* ==========================================================================
-   GESTION TABLEAU (AJOUT & DEPLACEMENT)
+   GESTION TABLEAU
    ========================================================================== */
 
 window.ajouterLigne = function(desc = "", tva = "NA", prix = 0, typePrest = "courant") {
@@ -83,26 +119,26 @@ window.ajouterLigne = function(desc = "", tva = "NA", prix = 0, typePrest = "cou
     const tr = document.createElement('tr');
     tr.dataset.type = "line";
     
-    // Sélection Obligatoire / Optionnel
     const selectedCourant = typePrest === "courant" ? "selected" : "";
     const selectedOption = typePrest === "option" ? "selected" : "";
 
     tr.innerHTML = `
+        <td style="text-align:center;"><i class="fas fa-grip-vertical drag-handle"></i></td>
         <td style="padding-left:10px;"><input class="l-desc" value="${desc}" placeholder="..."></td>
         <td>
             <select class="l-type-prest" style="font-size:0.8rem; text-align:center;">
-                <option value="courant" ${selectedCourant}>Courant (Oblig.)</option>
+                <option value="courant" ${selectedCourant}>Courant</option>
                 <option value="option" ${selectedOption}>Optionnel</option>
             </select>
         </td>
         <td style="text-align:center;"><input class="l-tva" value="${tva}" style="text-align:center;"></td>
         <td style="text-align:right;"><input type="number" class="l-prix" value="${prix}" step="0.01" style="text-align:right;" onchange="window.recalculer()"></td>
-        <td style="text-align:center; white-space:nowrap;">
-            <i class="fas fa-arrow-up move-btn" onclick="window.moveRow(this, -1)" title="Monter"></i>
-            <i class="fas fa-arrow-down move-btn" onclick="window.moveRow(this, 1)" title="Descendre"></i>
-            <i class="fas fa-trash move-btn" style="color:red; margin-left:5px;" onclick="this.closest('tr').remove(); window.recalculer();"></i>
+        <td style="text-align:center;">
+            <i class="fas fa-trash" style="color:red; cursor:pointer;" onclick="this.closest('tr').remove(); window.recalculer();"></i>
         </td>
     `;
+    
+    attachDragEvents(tr); // Activer le drag
     tbody.appendChild(tr);
     window.recalculer();
 };
@@ -113,25 +149,14 @@ window.ajouterTitreSection = function(titre = "NOUVELLE SECTION") {
     tr.dataset.type = "section";
     tr.className = "section-row"; 
     tr.innerHTML = `
+        <td style="text-align:center;"><i class="fas fa-grip-vertical drag-handle"></i></td>
         <td colspan="4"><input class="l-desc" value="${titre}" style="font-weight:bold; padding-left:10px; width:100%;"></td>
-        <td style="text-align:center; white-space:nowrap;">
-            <i class="fas fa-arrow-up move-btn" onclick="window.moveRow(this, -1)"></i>
-            <i class="fas fa-arrow-down move-btn" onclick="window.moveRow(this, 1)"></i>
-            <i class="fas fa-trash move-btn" style="color:red; margin-left:5px;" onclick="this.closest('tr').remove(); window.recalculer();"></i>
+        <td style="text-align:center;">
+            <i class="fas fa-trash" style="color:red; cursor:pointer;" onclick="this.closest('tr').remove(); window.recalculer();"></i>
         </td>
     `;
+    attachDragEvents(tr); // Activer le drag
     tbody.appendChild(tr);
-};
-
-// FONCTION DE DEPLACEMENT (MONTER / DESCENDRE)
-window.moveRow = function(btn, direction) {
-    const row = btn.closest('tr');
-    const tbody = row.parentNode;
-    if (direction === -1 && row.previousElementSibling) {
-        tbody.insertBefore(row, row.previousElementSibling);
-    } else if (direction === 1 && row.nextElementSibling) {
-        tbody.insertBefore(row.nextElementSibling, row);
-    }
 };
 
 window.recalculer = function() {
@@ -148,7 +173,7 @@ window.recalculer = function() {
 };
 
 /* ==========================================================================
-   SAUVEGARDE & NUMEROTATION AUTO
+   SAUVEGARDE
    ========================================================================== */
 
 async function getNextInvoiceNumber() {
@@ -159,18 +184,16 @@ async function getNextInvoiceNumber() {
         if (!snaps.empty) {
             const lastDoc = snaps.docs[0].data();
             if (lastDoc.numero && lastDoc.numero.includes('-')) {
-                // Format attendu : 2026-001
                 const parts = lastDoc.numero.split('-');
                 if(parts.length > 1) lastNum = parseInt(parts[1]);
             }
         }
         const year = new Date().getFullYear();
         const next = lastNum + 1;
-        // Formatage : 2026-001, 2026-002...
         return `${year}-${next.toString().padStart(3, '0')}`;
     } catch (e) {
         console.error("Erreur numérotation", e);
-        return "2026-001"; // Fallback
+        return "2026-001"; 
     }
 }
 
@@ -179,13 +202,9 @@ window.sauvegarderFactureBase = async function() {
     if(btn) btn.innerHTML = 'Envoi...';
     
     const nom = getVal('facture_nom');
-    if(!nom) { 
-        if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer'; 
-        return alert("Nom du client obligatoire"); 
-    }
+    if(!nom) { if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer'; return alert("Nom du client obligatoire"); }
 
     try {
-        // 1. Prospect auto
         if (!currentClientId) {
             const newClient = {
                 nom: nom,
@@ -197,7 +216,6 @@ window.sauvegarderFactureBase = async function() {
             currentClientId = docRef.id;
         }
 
-        // 2. Numérotation Automatique (Si nouveau)
         let numFinal = getVal('facture_numero');
         if (!currentInvoiceId && (numFinal === 'AUTO' || numFinal === '(Auto)' || numFinal === '')) {
             numFinal = await getNextInvoiceNumber();
@@ -218,13 +236,12 @@ window.sauvegarderFactureBase = async function() {
             created_at: new Date().toISOString()
         };
 
-        // Capture lignes avec le type (courant/option)
         document.querySelectorAll('#lines-body tr').forEach(row => {
             const type = row.dataset.type;
             const desc = row.querySelector('.l-desc') ? row.querySelector('.l-desc').value : "";
             const prix = (type === 'line') ? row.querySelector('.l-prix').value : "";
             const tva = (type === 'line') ? row.querySelector('.l-tva').value : "";
-            const typePrest = (type === 'line') ? row.querySelector('.l-type-prest').value : ""; // 'courant' ou 'option'
+            const typePrest = (type === 'line') ? row.querySelector('.l-type-prest').value : "";
             
             data.lignes.push({ type, desc, prix, tva, typePrest });
         });
@@ -237,14 +254,14 @@ window.sauvegarderFactureBase = async function() {
             alert("Document créé avec le N° " + numFinal);
         }
         
-        window.chargerHistorique(); // Refresh liste
+        window.chargerHistorique();
         
     } catch (e) { console.error(e); alert("Erreur: " + e.message); }
     if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer';
 };
 
 /* ==========================================================================
-   HISTORIQUE & RECHERCHE
+   HISTORIQUE & SUPPRESSION
    ========================================================================== */
 
 window.chargerHistorique = async function() {
@@ -255,17 +272,13 @@ window.chargerHistorique = async function() {
     try {
         const q = query(collection(db, "factures"), orderBy("created_at", "desc"), limit(50));
         const snaps = await getDocs(q);
-        
-        historyCache = []; // Stockage pour recherche locale
-        
+        historyCache = [];
         snaps.forEach(docSnap => {
             const d = docSnap.data();
             d.id = docSnap.id;
             historyCache.push(d);
         });
-        
         window.renderHistorique(historyCache);
-
     } catch (e) { console.error(e); }
 };
 
@@ -287,9 +300,12 @@ window.renderHistorique = function(items) {
             <td>${d.client_nom}</td>
             <td>${d.sujet || '-'}</td>
             <td style="font-weight:bold;">${d.total}</td>
-            <td>
-                <button onclick="window.chargerFacturePourModif('${d.id}')" style="cursor:pointer; border:1px solid #ccc; background:white; padding:2px 5px;">
+            <td style="display:flex; gap:5px;">
+                <button onclick="window.chargerFacturePourModif('${d.id}')" title="Modifier" style="cursor:pointer; border:1px solid #cbd5e1; background:white; padding:4px 8px; border-radius:4px; color:#334155;">
                     <i class="fas fa-pen"></i>
+                </button>
+                <button onclick="window.supprimerFacture('${d.id}')" title="Supprimer" style="cursor:pointer; border:1px solid #fca5a5; background:#fef2f2; padding:4px 8px; border-radius:4px; color:#dc2626;">
+                    <i class="fas fa-trash"></i>
                 </button>
             </td>
         `;
@@ -297,12 +313,24 @@ window.renderHistorique = function(items) {
     });
 };
 
+window.supprimerFacture = async function(id) {
+    if(confirm("Êtes-vous sûr de vouloir supprimer définitivement ce document ?")) {
+        try {
+            await deleteDoc(doc(db, "factures", id));
+            alert("Document supprimé.");
+            window.chargerHistorique(); // Rafraichissement immédiat
+        } catch(e) {
+            console.error(e);
+            alert("Erreur lors de la suppression.");
+        }
+    }
+};
+
 window.filtrerHistorique = function() {
     const term = document.getElementById('history-search').value.toLowerCase();
     const filtered = historyCache.filter(item => 
         (item.client_nom && item.client_nom.toLowerCase().includes(term)) ||
-        (item.numero && item.numero.toLowerCase().includes(term)) ||
-        (item.sujet && item.sujet.toLowerCase().includes(term))
+        (item.numero && item.numero.toLowerCase().includes(term))
     );
     window.renderHistorique(filtered);
 };
@@ -341,7 +369,7 @@ window.chargerFacturePourModif = async function(id) {
 };
 
 /* ==========================================================================
-   GENERATION PDF (LAYOUT CENTRÉ & COLONNES)
+   GENERATION PDF (CENTRÉ & COLONNES)
    ========================================================================== */
 
 window.genererPDFFacture = function() {
@@ -388,8 +416,6 @@ window.genererPDFFacture = function() {
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(22, 101, 52);
     let dateFr = getVal('facture_date');
     if(dateFr.includes('-')) dateFr = dateFr.split('-').reverse().join('-');
-    
-    // CENTRAGE DU TITRE DU DOCUMENT
     pdf.text(`${type} N° ${numero} du ${dateFr}`, 105, y, {align:"center"});
     y += 10;
 
@@ -398,7 +424,6 @@ window.genererPDFFacture = function() {
     document.querySelectorAll('#lines-body tr').forEach(row => {
         const desc = row.querySelector('.l-desc') ? row.querySelector('.l-desc').value : "";
         if (row.dataset.type === 'section') {
-            // Titre Section
             rows.push([{
                 content: desc, 
                 colSpan: 4, 
@@ -411,10 +436,8 @@ window.genererPDFFacture = function() {
             
             const typePrest = row.querySelector('.l-type-prest') ? row.querySelector('.l-type-prest').value : "courant";
             
-            // LOGIQUE COLONNES PRIX (Courant OU Optionnel)
             let colCourant = "";
             let colOption = "";
-            
             if(typePrest === "courant") colCourant = prixFmt;
             else colOption = prixFmt;
 
@@ -429,24 +452,14 @@ window.genererPDFFacture = function() {
         body: rows,
         theme: 'grid',
         headStyles: { 
-            fillColor: [220, 252, 231], 
-            textColor: [22, 101, 52], 
-            lineColor: [100, 100, 100], 
-            lineWidth: 0.1,
-            halign: 'center', // Horizontal Center
-            valign: 'middle'  // Vertical Center
+            fillColor: [220, 252, 231], textColor: [22, 101, 52], lineColor: [100, 100, 100], 
+            lineWidth: 0.1, halign: 'center', valign: 'middle'
         },
-        styles: { 
-            fontSize: 9, 
-            cellPadding: 2, 
-            lineColor: [200, 200, 200], 
-            lineWidth: 0.1,
-            valign: 'middle' // Cellules verticales centrées
-        },
+        styles: { fontSize: 9, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.1, valign: 'middle' },
         columnStyles: { 
             0: { cellWidth: 90 }, 
             1: { cellWidth: 15, halign: 'center' },
-            2: { cellWidth: 40, halign: 'right' }, // Prix alignés à droite pour lisibilité
+            2: { cellWidth: 40, halign: 'right' },
             3: { cellWidth: 40, halign: 'right' }
         }
     });
@@ -459,7 +472,6 @@ window.genererPDFFacture = function() {
     pdf.text("Total (TTC)", 142, finalY + 8);
     pdf.text(document.getElementById('total-ttc').textContent, 188, finalY + 8, {align:'right'});
 
-    // FOOTER
     finalY += 25;
     pdf.setFontSize(8); pdf.setTextColor(255, 0, 0); 
     pdf.text("NB :", 15, finalY);
