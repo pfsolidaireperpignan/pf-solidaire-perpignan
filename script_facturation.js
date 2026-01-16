@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MODULE FACTURATION - COMPLET
+   MODULE FACTURATION - COMPLET AVEC CHARGEMENT URL
    ========================================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -32,7 +32,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     initDragAndDrop();
 
-    // 1. CHARGER LES DOSSIERS
+    // 1. CHARGER LES DOSSIERS (POUR AUTOCOMPLETE)
     const datalist = document.getElementById('dossiers-datalist');
     if(datalist) {
         try {
@@ -40,6 +40,8 @@ window.addEventListener('DOMContentLoaded', async () => {
             const snaps = await getDocs(q);
             snaps.forEach((doc) => {
                 const d = doc.data();
+                
+                // On construit un label clair : "DÉFUNT (Mandant)"
                 const nomDefunt = `${d.nom || 'Inconnu'} ${d.prenom || ''}`.toUpperCase();
                 const nomMandant = d.soussigne || "Mandant Inconnu";
                 const labelRecherche = `${nomDefunt} (Famille : ${nomMandant})`;
@@ -53,14 +55,59 @@ window.addEventListener('DOMContentLoaded', async () => {
                 });
                 
                 const opt = document.createElement('option');
-                opt.value = labelRecherche; 
+                opt.value = labelRecherche; // C'est ce que l'utilisateur tape
                 datalist.appendChild(opt);
             });
         } catch (e) { console.error(e); }
     }
 
+    // 2. CHECK URL ID (REDIRECTION DEPUIS ADMIN)
+    const urlParams = new URLSearchParams(window.location.search);
+    const idFromUrl = urlParams.get('id');
+    if(idFromUrl) {
+        // On attend un peu que le cache soit prêt ou on charge direct
+        setTimeout(() => window.chargerDossierParID(idFromUrl), 500);
+    }
+
     window.chargerHistorique();
 });
+
+// --- CHARGEMENT DIRECT PAR ID (VENANT DE L'ADMIN) ---
+window.chargerDossierParID = async function(id) {
+    try {
+        // On essaie de trouver dans le cache d'abord
+        let found = dossiersCache.find(d => d.id === id);
+        
+        // Si pas dans le cache (ex: cache pas encore chargé), on va le chercher en base
+        if (!found) {
+            const docRef = doc(db, "dossiers_clients", id);
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+                const d = snap.data();
+                found = {
+                    id: snap.id,
+                    nom_defunt: `${d.nom || 'Inconnu'} ${d.prenom || ''}`.toUpperCase(),
+                    nom_mandant: d.soussigne || "Mandant Inconnu",
+                    adresse_mandant: d.demeurant || d.adresse_fr || ""
+                };
+            }
+        }
+
+        if (found) {
+            document.getElementById('facture_client').value = found.nom_mandant;
+            document.getElementById('facture_adresse').value = found.adresse_mandant;
+            document.getElementById('facture_defunt').value = found.nom_defunt;
+            currentDossierId = found.id;
+            
+            // On met aussi à jour le champ recherche pour faire joli
+            const searchInput = document.getElementById('search_dossier');
+            if (searchInput) {
+                searchInput.value = found.nom_defunt; // Ou le label complet
+                searchInput.style.backgroundColor = "#dcfce7";
+            }
+        }
+    } catch (e) { console.error("Erreur chargement ID:", e); }
+};
 
 // --- FONCTION ANNULER / NOUVEAU ---
 window.annulerModifications = function() {
@@ -86,11 +133,12 @@ window.annulerModifications = function() {
         document.getElementById('facture_date').value = new Date().toISOString().split('T')[0];
         document.getElementById('total-ttc').textContent = "0.00 €";
         
-        alert("Formulaire réinitialisé.");
+        // Retirer l'ID de l'URL pour être propre
+        window.history.pushState({}, document.title, window.location.pathname);
     }
 };
 
-// --- SELECTION INTELLIGENTE ---
+// --- SELECTION VIA BARRE DE RECHERCHE ---
 window.selectionnerDossier = function() {
     const val = getVal('search_dossier');
     const found = dossiersCache.find(d => d.label === val);
