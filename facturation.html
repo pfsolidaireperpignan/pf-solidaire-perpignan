@@ -11,60 +11,24 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     <style>
-        /* DESIGN SPECIFIQUE AU MODELE IMAGE */
         .invoice-wrapper { max-width: 1000px; margin: 30px auto; padding: 20px; background: white; min-height: 100vh; }
-        
-        /* En-tête */
-        .top-bar { border-top: 5px solid #eab308; margin-bottom: 30px; } /* Barre jaune/dorée du haut */
+        .top-bar { border-top: 5px solid #eab308; margin-bottom: 30px; }
         .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-        
-        .company-details { font-size: 0.95rem; color: #166534; /* Vert foncé */ }
+        .company-details { font-size: 0.95rem; color: #166534; }
         .company-details strong { font-size: 1.2rem; display: block; margin-bottom: 5px; }
-        
-        .client-box { 
-            background: #f3f4f6; /* Gris clair */
-            border: 1px solid #d1d5db; 
-            border-radius: 6px; 
-            padding: 15px; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
+        .client-box { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .client-box h4 { margin: 0 0 10px 0; border-bottom: 1px solid #d1d5db; padding-bottom: 5px; }
         
-        /* Tableau */
         .invoice-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
-        
-        .invoice-table th { 
-            background: #dcfce7; /* Vert très clair */
-            border: 1px solid #86efac;
-            padding: 8px; 
-            text-align: center;
-            color: #14532d;
-            font-weight: bold;
-            vertical-align: middle;
-        }
-        
+        .invoice-table th { background: #dcfce7; border: 1px solid #86efac; padding: 8px; text-align: center; color: #14532d; font-weight: bold; }
         .invoice-table td { border: 1px solid #e5e7eb; padding: 0; }
+        .invoice-table input { width: 100%; padding: 8px; border: none; outline: none; font-family: inherit; font-size: inherit; background: transparent; }
         
-        .invoice-table input { 
-            width: 100%; padding: 8px; border: none; outline: none; font-family: inherit; font-size: inherit; background: transparent;
-        }
-        
-        /* Lignes de section (Orange) */
         tr.section-row td { background: #ffedd5; border-color: #fdba74; }
         tr.section-row input { font-weight: bold; color: #9a3412; text-transform: uppercase; }
 
-        /* Totaux */
         .total-container { display: flex; justify-content: flex-end; margin-top: 20px; }
-        .total-box { 
-            border: 2px solid #166534; 
-            padding: 10px 20px; 
-            font-size: 1.3rem; 
-            font-weight: bold; 
-            color: #166534;
-            background: #f0fdf4;
-        }
-
-        /* Inputs rapides */
+        .total-box { border: 2px solid #166534; padding: 10px 20px; font-size: 1.3rem; font-weight: bold; color: #166534; background: #f0fdf4; }
         .fast-input { width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px; }
     </style>
 </head>
@@ -92,12 +56,10 @@
                     Tél : +33 7 55 18 27 77
                 </p>
             </div>
-
             <div class="client-box">
                 <h4>Famille / Client</h4>
                 <input id="facture_nom" list="clients-datalist" class="fast-input" placeholder="Nom du client (Recherche auto)..." onchange="window.checkClientAuto()">
                 <datalist id="clients-datalist"></datalist>
-                
                 <input id="facture_adresse" class="fast-input" placeholder="Adresse complète...">
                 <input id="facture_defunt" class="fast-input" placeholder="Concerne le défunt..." style="margin-top:10px; font-style:italic;">
             </div>
@@ -138,13 +100,12 @@
                     <th style="width:5%"></th>
                 </tr>
             </thead>
-            <tbody id="lines-body">
-                </tbody>
+            <tbody id="lines-body"></tbody>
         </table>
 
         <div class="total-container">
             <div class="total-box">
-                Total (TTC) <span id="total-ttc" style="margin-left:20px;">0,00 €</span>
+                Total (TTC) <span id="total-ttc" style="margin-left:20px;">0.00 €</span>
             </div>
         </div>
 
