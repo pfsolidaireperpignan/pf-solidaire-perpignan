@@ -16,36 +16,30 @@
         .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; }
         .client-box { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 15px; }
         
-        /* TABLEAU */
+        /* CHAMPS RECHERCHE */
+        .search-group { margin-bottom: 15px; border-bottom: 1px solid #d1d5db; padding-bottom: 15px; }
+        .search-label { font-size: 0.8rem; font-weight: bold; color:var(--accent); text-transform: uppercase; display:block; margin-bottom:5px; }
+        
         .invoice-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
-        .invoice-table th { 
-            background: #dcfce7; border: 1px solid #166534; padding: 10px; 
-            text-align: center; color: #14532d; font-weight: bold; vertical-align: middle;
-        }
+        .invoice-table th { background: #dcfce7; border: 1px solid #166534; padding: 10px; text-align: center; color: #14532d; font-weight: bold; vertical-align: middle; }
         .invoice-table td { border: 1px solid #e5e7eb; padding: 2px; vertical-align: middle; background: white; }
-        .invoice-table input, .invoice-table select { 
-            width: 100%; padding: 8px; border: none; outline: none; background: transparent; font-family: inherit; font-size: inherit; 
-        }
-        .invoice-table input:focus, .invoice-table select:focus { background: #f0f9ff; }
+        .invoice-table input, .invoice-table select { width: 100%; padding: 8px; border: none; outline: none; background: transparent; }
+        .invoice-table input:focus { background: #f0f9ff; }
         
         tr.section-row td { background: #ffedd5 !important; border-color: #fdba74; }
         tr.section-row input { font-weight: bold; color: #9a3412; text-transform: uppercase; }
 
-        /* DRAG & DROP */
         .drag-handle { cursor: grab; color: #94a3b8; font-size: 1.2rem; padding: 0 10px; }
-        .drag-handle:active { cursor: grabbing; color:var(--accent); }
-        .draggable-source { opacity: 0.4; background: #e2e8f0; } 
-
         .total-container { display: flex; justify-content: flex-end; margin-top: 20px; }
         .total-box { border: 2px solid #166534; padding: 10px 20px; font-size: 1.3rem; font-weight: bold; color: #166534; background: #f0fdf4; }
         
-        .fast-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px; }
+        .fast-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px; background: white; }
+        .readonly-input { background-color: #e5e7eb; color: #555; cursor: not-allowed; }
 
         .history-section { margin-top: 60px; border-top: 4px solid #e2e8f0; padding-top: 30px; }
         .history-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         .history-table th { background: #1e293b; color: white; padding: 10px; text-align: left; }
         .history-table td { padding: 10px; border-bottom: 1px solid #eee; }
-        .history-table tr:hover { background: #f8fafc; }
         .status-tag { padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: bold; background: #e0f2fe; color: #0369a1; }
     </style>
 </head>
@@ -59,7 +53,7 @@
             <a href="index.html" class="btn btn-outline" style="text-decoration:none; border:none;">
                 <i class="fas fa-arrow-left"></i> Retour au Hub
             </a>
-            <button onclick="window.location.reload()" class="btn btn-outline">
+            <button onclick="window.annulerModifications()" class="btn btn-outline">
                 <i class="fas fa-plus"></i> Nouveau Devis Vierge
             </button>
         </div>
@@ -72,17 +66,27 @@
             </div>
 
             <div class="client-box">
-                <h4 style="margin-top:0;">Famille / Client</h4>
-                <input id="facture_nom" list="clients-datalist" class="fast-input" placeholder="Rechercher Client..." onchange="window.checkClientAuto()">
-                <datalist id="clients-datalist"></datalist>
-                <input id="facture_adresse" class="fast-input" placeholder="Adresse...">
-                <input id="facture_defunt" class="fast-input" placeholder="Défunt concerné...">
+                <div class="search-group">
+                    <label class="search-label"><i class="fas fa-search"></i> Rechercher Dossier (Par Défunt)</label>
+                    <input id="search_dossier" list="dossiers-datalist" class="fast-input" 
+                           placeholder="Tapez le nom du défunt..." 
+                           onchange="window.selectionnerDossier()" 
+                           style="border: 2px solid var(--accent);">
+                    <datalist id="dossiers-datalist"></datalist>
+                </div>
+
+                <h4 style="margin:0 0 5px 0; color:#666;">Facturation (Payeur / Mandant) :</h4>
+                <input id="facture_client" class="fast-input" placeholder="Nom du Mandant (Payeur)...">
+                <input id="facture_adresse" class="fast-input" placeholder="Adresse du Mandant...">
+                
+                <h4 style="margin:10px 0 5px 0; color:#666;">Concerne le défunt :</h4>
+                <input id="facture_defunt" class="fast-input" placeholder="Nom du Défunt...">
             </div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #eee; padding-bottom:15px;">
             <div style="flex:1; margin-right:20px;">
-                <label style="font-size:0.8rem; font-weight:bold; color:#666;">OBJET (Sélectionnez pour charger le modèle) :</label>
+                <label style="font-size:0.8rem; font-weight:bold; color:#666;">OBJET DU DEVIS :</label>
                 <select id="facture_sujet_select" onchange="window.changerModele(this.value)" style="width:100%; font-size:1.1rem; font-weight:bold; padding:8px; border:1px solid var(--accent); color:var(--primary-dark); border-radius:4px; cursor:pointer;">
                     <option value="" disabled selected>-- CHOISIR LE TYPE D'OBSÈQUES --</option>
                     <option value="INHUMATION">INHUMATION (Classique)</option>
@@ -143,6 +147,10 @@
         </div>
 
         <div class="actions-bar center" style="margin-top:50px; gap:20px;">
+            <button onclick="window.annulerModifications()" class="btn btn-outline" style="border-color:#94a3b8; color:#475569;">
+                <i class="fas fa-undo"></i> Annuler / Nouveau
+            </button>
+            
             <button onclick="window.sauvegarderFactureBase()" class="btn btn-green"><i class="fas fa-save"></i> Enregistrer & Numéroter</button>
             <button onclick="window.genererPDFFacture()" class="btn btn-blue big-btn"><i class="fas fa-print"></i> IMPRIMER PDF</button>
         </div>
@@ -151,11 +159,11 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 style="color:#1e293b; margin:0;"><i class="fas fa-history"></i> Historique des documents</h3>
                 <div style="display:flex; gap:10px;">
-                    <input id="history-search" placeholder="Rechercher (N°, Nom...)" style="padding:8px; border:1px solid #ccc; border-radius:4px; width:250px;" onkeyup="window.filtrerHistorique()">
+                    <input id="history-search" placeholder="Rechercher..." style="padding:8px; border:1px solid #ccc; border-radius:4px; width:250px;" onkeyup="window.filtrerHistorique()">
                 </div>
             </div>
             <table class="history-table">
-                <thead><tr><th>Date</th><th>Type & N°</th><th>Client</th><th>Objet</th><th>Total</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Date</th><th>Type & N°</th><th>Défunt / Client</th><th>Objet</th><th>Total</th><th>Actions</th></tr></thead>
                 <tbody id="history-body">
                     <tr><td colspan="6" style="text-align:center; color:#999;">Chargement...</td></tr>
                 </tbody>
