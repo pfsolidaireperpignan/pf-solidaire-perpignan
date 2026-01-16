@@ -1,10 +1,10 @@
 /* ==========================================================================
-   MODULE FACTURATION - "FAST TRACK"
+   MODULE FACTURATION - CORRIGÉ & STYLE PRO
    ========================================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// --- VOTRE CONFIGURATION FIREBASE ---
+// --- VOTRE CONFIGURATION (Celle que vous avez fournie) ---
 const firebaseConfig = {
     apiKey: "AIzaSyDmsIkTjW2IFkIks5BUAnxLLnc7pnj2e0w",
     authDomain: "pf-solidaire.firebaseapp.com",
@@ -18,16 +18,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Stockage temporaire des clients pour la recherche rapide
-let clientsCache = []; 
+let clientsCache = [];
 let currentClientId = null;
 
-/* ==========================================================================
-   INIT & RECHERCHE RAPIDE
-   ========================================================================== */
-
+// --- INITIALISATION ---
 window.addEventListener('DOMContentLoaded', async () => {
-    // Date du jour
     const dateInput = document.getElementById('facture_date');
     if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
@@ -51,14 +46,14 @@ window.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { console.error("Erreur chargement clients", e); }
     }
 
-    // Lignes par défaut (Exemple)
-    window.ajouterTitreSection("1. PRESTATIONS COURANTES");
-    window.ajouterLigne("Cercueil", "NA", 0);
+    // Exemple de départ (Comme sur votre image)
+    window.ajouterTitreSection("1. EXHUMATION");
+    window.ajouterLigne("Creusement de terre", "NA", 685);
 });
 
-// --- FONCTIONS PUBLIQUES (WINDOW) ---
+// --- FONCTIONS PUBLIQUES (CORRECTION DES BOUTONS) ---
 
-// 1. Recherche Auto
+// 1. AUTO-COMPLETION
 window.checkClientAuto = function() {
     const val = document.getElementById('facture_nom').value;
     const found = clientsCache.find(c => c.name === val);
@@ -74,7 +69,7 @@ window.checkClientAuto = function() {
     }
 };
 
-// 2. Ajouter une Ligne simple
+// 2. AJOUTER LIGNE STANDARD
 window.ajouterLigne = function(desc = "", tva = "NA", prix = 0) {
     const tbody = document.getElementById('lines-body');
     const tr = document.createElement('tr');
@@ -90,20 +85,20 @@ window.ajouterLigne = function(desc = "", tva = "NA", prix = 0) {
     window.recalculer();
 };
 
-// 3. Ajouter un Titre de Section (Orange)
+// 3. AJOUTER TITRE DE SECTION (ORANGE)
 window.ajouterTitreSection = function(titre = "NOUVELLE SECTION") {
     const tbody = document.getElementById('lines-body');
     const tr = document.createElement('tr');
     tr.dataset.type = "section";
-    tr.className = "section-row"; 
+    tr.className = "section-row"; // Active le style orange CSS
     tr.innerHTML = `
-        <td colspan="4"><input class="l-desc" value="${titre}" style="font-weight:bold; color:#9a3412; padding-left:10px; width:100%;"></td>
+        <td colspan="4"><input class="l-desc" value="${titre}" style="font-weight:bold; padding-left:10px; width:100%;"></td>
         <td style="text-align:center;"><i class="fas fa-trash" style="color:red; cursor:pointer;" onclick="this.closest('tr').remove(); window.recalculer();"></i></td>
     `;
     tbody.appendChild(tr);
 };
 
-// 4. Calculs
+// 4. CALCULS
 window.recalculer = function() {
     let total = 0;
     document.querySelectorAll('tr[data-type="line"]').forEach(row => {
@@ -117,7 +112,7 @@ window.recalculer = function() {
     if(totalEl) totalEl.textContent = total.toFixed(2) + ' €';
 };
 
-// 5. Sauvegarder
+// 5. SAUVEGARDER
 window.sauvegarderFactureBase = async function() {
     const btn = document.querySelector('.btn-green');
     if(btn) btn.innerHTML = 'Envoi...';
@@ -129,7 +124,6 @@ window.sauvegarderFactureBase = async function() {
     }
 
     try {
-        // Création Prospect si inconnu
         if (!currentClientId) {
             const newClient = {
                 nom: nom,
@@ -142,7 +136,6 @@ window.sauvegarderFactureBase = async function() {
             currentClientId = docRef.id;
         }
 
-        // Données Facture
         const factureData = {
             type: document.getElementById('doc_type').value,
             numero: document.getElementById('facture_numero').value,
@@ -155,7 +148,6 @@ window.sauvegarderFactureBase = async function() {
             created_at: new Date().toISOString()
         };
 
-        // Capture des lignes
         document.querySelectorAll('#lines-body tr').forEach(row => {
             const type = row.dataset.type;
             const desc = row.querySelector('.l-desc').value;
@@ -165,7 +157,7 @@ window.sauvegarderFactureBase = async function() {
         });
 
         await addDoc(collection(db, "factures"), factureData);
-        alert("Document enregistré avec succès !");
+        alert("Enregistré avec succès !");
         
     } catch (e) { 
         console.error(e);
@@ -174,7 +166,7 @@ window.sauvegarderFactureBase = async function() {
     if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer';
 };
 
-// 6. Générer PDF
+// 6. GENERER PDF (STYLE MODELE EXACT)
 window.genererPDFFacture = function() {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF();
@@ -185,7 +177,7 @@ window.genererPDFFacture = function() {
     const imgElement = document.getElementById('logo-source');
     if (imgElement) pdf.addImage(imgElement, 'PNG', 15, 15, 35, 35);
     
-    pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(22, 101, 52); 
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(22, 101, 52); // Vert Logo
     pdf.text("POMPES FUNEBRES", 15, 55);
     pdf.text("SOLIDAIRE PERPIGNAN", 15, 60);
     
@@ -195,7 +187,7 @@ window.genererPDFFacture = function() {
     pdf.text("SIRET : 539 270 298 00042", 15, 74);
     pdf.text("Tél : +33 7 55 18 27 77", 15, 78);
 
-    // --- FAMILLE ---
+    // --- FAMILLE (Case Grise) ---
     pdf.setFillColor(240, 240, 240); 
     pdf.rect(120, 20, 75, 40, 'F');
     pdf.setFont("helvetica", "bold"); pdf.setTextColor(0);
@@ -206,7 +198,7 @@ window.genererPDFFacture = function() {
     const adresse = pdf.splitTextToSize(document.getElementById('facture_adresse').value, 70);
     pdf.text(adresse, 125, 42);
 
-    // --- TITRE ---
+    // --- TITRE & SUJET ---
     let y = 90;
     const sujet = document.getElementById('facture_sujet').value.toUpperCase();
     if(sujet) {
@@ -225,11 +217,15 @@ window.genererPDFFacture = function() {
     document.querySelectorAll('#lines-body tr').forEach(row => {
         const desc = row.querySelector('.l-desc').value;
         if (row.dataset.type === 'section') {
-            // Titre Section
+            // Ligne de titre (Fond Orange Clair #ffedd5 -> RGB 255, 237, 213)
             rows.push([{
                 content: desc, 
                 colSpan: 4, 
-                styles: {fillColor: [255, 237, 213], textColor: [0,0,0], fontStyle: 'bold'}
+                styles: {
+                    fillColor: [255, 237, 213], 
+                    textColor: [0,0,0], 
+                    fontStyle: 'bold'
+                }
             }]);
         } else {
             // Ligne Produit
@@ -242,28 +238,38 @@ window.genererPDFFacture = function() {
 
     pdf.autoTable({
         startY: 100,
+        // Entête Vert Clair (#dcfce7 -> RGB 220, 252, 231)
         head: [['', 'TVA', 'PRIX TTC PRESTATIONS\nCOURANTES', 'PRIX TTC PRESTATIONS\nCOMPLEMENTAIRES\nOPTIONNELLES']],
         body: rows,
         theme: 'grid',
-        headStyles: { fillColor: [220, 252, 231], textColor: [22, 101, 52], lineColor: [200, 200, 200], lineWidth: 0.1 },
+        headStyles: { 
+            fillColor: [220, 252, 231], 
+            textColor: [22, 101, 52], 
+            lineColor: [100, 100, 100], 
+            lineWidth: 0.1,
+            halign: 'center',
+            valign: 'middle'
+        },
+        styles: { fontSize: 9, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.1 },
         columnStyles: { 
             0: { cellWidth: 100 }, 
             1: { cellWidth: 15, halign: 'center' },
             2: { cellWidth: 40, halign: 'right' },
             3: { cellWidth: 35 }
-        },
-        styles: { fontSize: 9, cellPadding: 2 }
+        }
     });
 
     // --- TOTAL ---
     let finalY = pdf.lastAutoTable.finalY + 10;
+    
+    // Cadre Total
     pdf.setDrawColor(22, 101, 52); pdf.setLineWidth(0.5);
     pdf.rect(140, finalY, 50, 12);
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(0);
     pdf.text("Total (TTC)", 142, finalY + 8);
     pdf.text(document.getElementById('total-ttc').textContent, 188, finalY + 8, {align:'right'});
 
-    // --- FOOTER ---
+    // --- PIED DE PAGE ---
     finalY += 25;
     pdf.setFontSize(8); pdf.setTextColor(255, 0, 0); // Rouge
     pdf.text("NB :", 15, finalY);
