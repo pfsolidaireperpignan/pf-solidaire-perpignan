@@ -1,10 +1,10 @@
 /* ==========================================================================
-   MODULE FACTURATION - AVEC LOGIQUE METIER INHUMATION/CREMATION/RAPATRIEMENT
+   MODULE FACTURATION - VERSION AJUSTÉE (PRIX & TVA NA)
    ========================================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// --- CONFIGURATION FIREBASE ---
+// --- VOTRE CONFIGURATION FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyDmsIkTjW2IFkIks5BUAnxLLnc7pnj2e0w",
     authDomain: "pf-solidaire.firebaseapp.com",
@@ -25,7 +25,7 @@ let currentInvoiceId = null;
 
 function getVal(id) { const el = document.getElementById(id); return el ? el.value : ""; }
 
-// --- INIT ---
+// --- INITIALISATION ---
 window.addEventListener('DOMContentLoaded', async () => {
     const dateInput = document.getElementById('facture_date');
     if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
@@ -51,60 +51,63 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     window.chargerHistorique();
     
-    // Par défaut, on ne charge rien, on attend que l'utilisateur choisisse dans la liste
+    // On attend que l'utilisateur choisisse un objet pour remplir le tableau
 });
 
-// --- LOGIQUE DE CHANGEMENT DE MODELE (C'est ici que ça se passe) ---
+// --- CHANGEMENT DE MODÈLE (LOGIQUE MÉTIER) ---
 window.changerModele = function(type) {
     const tbody = document.getElementById('lines-body');
-    tbody.innerHTML = ''; // On vide tout
+    tbody.innerHTML = ''; // On vide tout pour reconstruire
     
-    // On met à jour le champ caché sujet
     document.getElementById('facture_sujet').value = type;
 
-    // SECTION 1 (COMMUNE)
+    // SECTION 1
     window.ajouterTitreSection("1 - PRÉPARATION / ORGANISATION DES OBSÈQUES");
-    window.ajouterLigne("Honoraires d'organisation", "20", 0, "courant");
-    window.ajouterLigne("Démarches administratives (Mairie, Préfecture...)", "20", 0, "courant");
-    window.ajouterLigne("Toilette mortuaire : Préparation et habillage", "20", 0, "courant");
-    window.ajouterLigne("Soins de conservation (Thanatopraxie)", "20", 0, "option");
+    window.ajouterLigne("Chambre funéraire (Séjour)", "NA", 300, "courant"); // Remplacé Honoraires
+    window.ajouterLigne("Démarches administratives (Mairie, Préfecture...)", "NA", 250, "courant");
+    window.ajouterLigne("Toilette mortuaire : Préparation et habillage", "NA", 150, "courant");
+    window.ajouterLigne("Soins de conservation (Thanatopraxie)", "NA", 250, "option");
 
-    // SECTION 2 (COMMUNE)
+    // SECTION 2
     window.ajouterTitreSection("2 - TRANSPORT AVANT MISE EN BIÈRE");
-    window.ajouterLigne("Véhicule agréé avec chauffeur (Forfait < 50km)", "10", 0, "courant");
+    window.ajouterLigne("Véhicule agréé avec chauffeur (Forfait < 50km)", "NA", 450, "courant");
 
-    // SECTION 3 (COMMUNE)
+    // SECTION 3
     window.ajouterTitreSection("3 - CERCUEIL ET ACCESSOIRES");
-    window.ajouterLigne("Cercueil (Modèle à définir)", "20", 0, "courant");
-    window.ajouterLigne("Plaque d'identité (Obligatoire)", "20", 30, "courant");
-    window.ajouterLigne("Capiton", "20", 0, "courant");
-    window.ajouterLigne("4 Poignées + Cuvette étanche (Obligatoires)", "20", 0, "courant");
+    window.ajouterLigne("Cercueil (Modèle à définir : Pin / Chêne)", "NA", 850, "courant");
+    window.ajouterLigne("Plaque d'identité (Obligatoire)", "NA", 30, "courant");
+    window.ajouterLigne("Capiton (Taffetas / Satin)", "NA", 80, "courant");
+    window.ajouterLigne("4 Poignées (Obligatoires)", "NA", 0, "courant"); // Souvent inclus
+    window.ajouterLigne("Cuvette étanche (Obligatoire)", "NA", 0, "courant"); // Souvent inclus
 
-    // SECTION 4 (COMMUNE)
+    // SECTION 4
     window.ajouterTitreSection("4 - MISE EN BIÈRE ET FERMETURE");
-    window.ajouterLigne("Personnel pour mise en bière et fermeture", "20", 0, "courant");
+    window.ajouterLigne("Personnel pour mise en bière et fermeture", "NA", 95, "courant");
 
-    // SECTION 5 (COMMUNE)
+    // SECTION 5
     window.ajouterTitreSection("5 - CÉRÉMONIE FUNÉRAIRE");
-    window.ajouterLigne("Corbillard pour cérémonie avec chauffeur", "10", 0, "courant");
-    window.ajouterLigne("Mise à disposition de porteurs", "20", 0, "courant");
+    window.ajouterLigne("Corbillard pour cérémonie avec chauffeur", "NA", 400, "courant");
+    window.ajouterLigne("Mise à disposition de porteurs", "NA", 0, "option"); 
+    window.ajouterLigne("Registre de condoléances", "NA", 30, "option");
 
-    // BLOCS SPECIFIQUES
+    // BLOCS SPÉCIFIQUES SELON LE CHOIX
     if (type === "INHUMATION") {
         window.ajouterTitreSection("6 - INHUMATION / EXHUMATION");
-        window.ajouterLigne("Ouverture / Fermeture de sépulture", "20", 0, "courant");
-        window.ajouterLigne("Creusement de fosse (Pleine terre)", "20", 0, "option");
+        window.ajouterLigne("Ouverture / Fermeture de sépulture", "NA", 685, "courant");
+        window.ajouterLigne("Creusement de fosse (Pleine terre)", "NA", 0, "option");
+        window.ajouterLigne("Exhumation de corps", "NA", 300, "option");
     } 
     else if (type === "CREMATION") {
         window.ajouterTitreSection("6 - CRÉMATION");
-        window.ajouterLigne("Urne cinéraire", "20", 0, "courant");
-        window.ajouterLigne("Redevance Crématorium", "0", 0, "courant");
+        window.ajouterLigne("Urne cinéraire", "NA", 150, "courant");
+        window.ajouterLigne("Redevance Crématorium (Débours)", "NA", 600, "courant");
     }
     else if (type === "RAPATRIEMENT") {
         window.ajouterTitreSection("6 - RAPATRIEMENT");
-        window.ajouterLigne("Frais de fret aérien", "0", 0, "courant");
-        window.ajouterLigne("Ambulance (Aéroport vers lieu d'inhumation)", "0", 0, "courant");
-        window.ajouterLigne("Caisson zinc (Obligatoire pour l'avion)", "20", 0, "courant");
+        window.ajouterLigne("Caisson zinc avec filtre épurateur (Obligatoire)", "NA", 400, "courant");
+        window.ajouterLigne("Frais de fret aérien (Estimation Poids)", "NA", 1320, "courant");
+        window.ajouterLigne("Ambulance (Aéroport vers lieu d'inhumation)", "NA", 200, "courant");
+        window.ajouterLigne("Démarches Consulaires / Douanières", "NA", 150, "courant");
     }
     
     window.recalculer();
@@ -199,6 +202,7 @@ window.ajouterTitreSection = function(titre = "NOUVELLE SECTION") {
     tbody.appendChild(tr);
 };
 
+// CALCUL SIMPLE (PAS DE TVA CALCULÉE)
 window.recalculer = function() {
     let total = 0;
     document.querySelectorAll('tr[data-type="line"]').forEach(row => {
@@ -212,7 +216,7 @@ window.recalculer = function() {
     if(totalEl) totalEl.textContent = total.toFixed(2) + ' €';
 };
 
-// --- SAUVEGARDE ---
+// --- SAUVEGARDE & NUMEROTATION ---
 async function getNextInvoiceNumber() {
     try {
         const q = query(collection(db, "factures"), orderBy("created_at", "desc"), limit(1));
@@ -260,7 +264,7 @@ window.sauvegarderFactureBase = async function() {
             type: getVal('doc_type'),
             numero: numFinal,
             date: getVal('facture_date'),
-            sujet: getVal('facture_sujet') || document.getElementById('facture_sujet_select').value, // Fallback si le select est utilisé
+            sujet: getVal('facture_sujet') || document.getElementById('facture_sujet_select').value, 
             client_id: currentClientId,
             client_nom: nom,
             client_adresse: getVal('facture_adresse'),
@@ -368,7 +372,6 @@ window.chargerFacturePourModif = async function(id) {
         document.getElementById('facture_defunt').value = d.defunt_nom || "";
         document.getElementById('facture_sujet').value = d.sujet || "";
         
-        // Mettre à jour le select s'il correspond
         if(d.sujet && ["INHUMATION", "CREMATION", "RAPATRIEMENT"].includes(d.sujet)) {
             document.getElementById('facture_sujet_select').value = d.sujet;
         } else {
