@@ -11,17 +11,26 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     <style>
-        .invoice-wrapper { max-width: 1000px; margin: 30px auto; padding: 20px; background: white; min-height: 100vh; }
+        /* DESIGN FACTURATION */
+        .invoice-wrapper { max-width: 1200px; margin: 20px auto; padding: 20px; background: white; min-height: 100vh; }
         .top-bar { border-top: 5px solid #eab308; margin-bottom: 30px; } 
         .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; }
+        
         .client-box { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 15px; }
         
         /* TABLEAU SAISIE */
         .invoice-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
-        .invoice-table th { background: #dcfce7; border: 1px solid #166534; padding: 10px; text-align: center; color: #14532d; font-weight: bold; }
-        .invoice-table td { border: 1px solid #e5e7eb; padding: 0; }
-        .invoice-table input { width: 100%; padding: 8px; border: none; outline: none; background: transparent; font-family: inherit; }
+        .invoice-table th { 
+            background: #dcfce7; border: 1px solid #166534; padding: 10px; 
+            text-align: center; color: #14532d; font-weight: bold; vertical-align: middle;
+        }
+        .invoice-table td { border: 1px solid #e5e7eb; padding: 2px; vertical-align: middle; }
+        .invoice-table input, .invoice-table select { 
+            width: 100%; padding: 8px; border: none; outline: none; background: transparent; font-family: inherit; font-size: inherit; 
+        }
+        .invoice-table input:focus, .invoice-table select:focus { background: #f0f9ff; }
         
+        /* Styles Lignes */
         tr.section-row td { background: #ffedd5 !important; border-color: #fdba74; }
         tr.section-row input { font-weight: bold; color: #9a3412; text-transform: uppercase; }
 
@@ -30,13 +39,18 @@
         
         .fast-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px; }
 
-        /* TABLEAU HISTORIQUE (NOUVEAU) */
-        .history-section { margin-top: 60px; border-top: 2px dashed #ccc; padding-top: 20px; }
+        /* TABLEAU HISTORIQUE */
+        .history-section { margin-top: 60px; border-top: 4px solid #e2e8f0; padding-top: 30px; }
+        .history-controls { margin-bottom: 15px; display:flex; gap:10px; }
         .history-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         .history-table th { background: #1e293b; color: white; padding: 10px; text-align: left; }
         .history-table td { padding: 10px; border-bottom: 1px solid #eee; }
         .history-table tr:hover { background: #f8fafc; }
         .status-tag { padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: bold; background: #e0f2fe; color: #0369a1; }
+
+        /* Boutons de déplacement */
+        .move-btn { cursor: pointer; color: #64748b; font-size: 0.9rem; padding: 2px 5px; }
+        .move-btn:hover { color: var(--accent); }
     </style>
 </head>
 <body>
@@ -81,7 +95,7 @@
                     <option value="FACTURE">FACTURE</option>
                 </select>
                 <span style="font-weight:bold; margin-left:10px;">N°</span>
-                <input id="facture_numero" value="AUTO" style="width:80px; font-weight:bold; border:none; text-align:right; color:var(--accent);">
+                <input id="facture_numero" value="(Auto)" disabled style="width:100px; font-weight:bold; border:none; text-align:right; color:#ef4444; background:transparent;">
                 <br>
                 <span style="font-size:0.9rem;">Date : </span><input type="date" id="facture_date" style="border:none;">
             </div>
@@ -89,7 +103,7 @@
 
         <div style="margin-top:15px; display:flex; gap:10px;">
             <button onclick="window.ajouterTitreSection()" class="btn" style="background:#ffedd5; color:#c2410c; border:1px solid #fdba74; font-weight:bold;">
-                <i class="fas fa-heading"></i> Titre Section
+                <i class="fas fa-heading"></i> Ajouter Titre Section
             </button>
             <button onclick="window.ajouterLigne()" class="btn btn-outline">
                 <i class="fas fa-plus"></i> Ajouter Ligne
@@ -99,33 +113,47 @@
         <table class="invoice-table">
             <thead>
                 <tr>
-                    <th style="width:45%">DÉSIGNATION</th>
-                    <th style="width:10%">TVA</th>
-                    <th style="width:20%">PRIX TTC COURANT</th>
-                    <th style="width:20%">PRIX TTC OPTION</th>
-                    <th style="width:5%"></th>
-                </tr>
+                    <th style="width:35%">DÉSIGNATION</th>
+                    <th style="width:12%">TYPE</th> <th style="width:10%">TVA</th>
+                    <th style="width:15%">PRIX TTC</th>
+                    <th style="width:10%">ACTIONS</th> </tr>
             </thead>
-            <tbody id="lines-body"></tbody>
+            <tbody id="lines-body">
+                </tbody>
         </table>
 
         <div class="total-container">
             <div class="total-box">
-                Total (TTC) <span id="total-ttc" style="margin-left:20px;">0.00 €</span>
+                Total Global (TTC) <span id="total-ttc" style="margin-left:20px;">0.00 €</span>
             </div>
         </div>
 
+        <div style="margin-top:40px; color:#ef4444; font-size:0.85rem;">
+            <strong>NB :</strong>
+            <ul style="list-style:none; padding:0; margin-top:5px; color:#333;">
+                <li>- (NA) TVA non applicable (0%), art 293 B du CGI</li>
+                <li>- Conditions de paiement : 100% à payer à réception</li>
+            </ul>
+        </div>
+
         <div class="actions-bar center" style="margin-top:50px; gap:20px;">
-            <button onclick="window.sauvegarderFactureBase()" class="btn btn-green"><i class="fas fa-save"></i> Enregistrer / Mettre à jour</button>
+            <button onclick="window.sauvegarderFactureBase()" class="btn btn-green"><i class="fas fa-save"></i> Enregistrer & Numéroter</button>
             <button onclick="window.genererPDFFacture()" class="btn btn-blue big-btn"><i class="fas fa-print"></i> IMPRIMER PDF</button>
         </div>
 
         <div class="history-section">
-            <h3 style="color:#1e293b;"><i class="fas fa-history"></i> Historique des derniers documents</h3>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="color:#1e293b; margin:0;"><i class="fas fa-history"></i> Historique des documents</h3>
+                <div style="display:flex; gap:10px;">
+                    <input id="history-search" placeholder="Rechercher (N°, Nom...)" style="padding:8px; border:1px solid #ccc; border-radius:4px; width:250px;">
+                    <button class="btn btn-outline" onclick="window.filtrerHistorique()"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
+            
             <table class="history-table">
-                <thead><tr><th>Date</th><th>Type & N°</th><th>Client</th><th>Total</th><th>Action</th></tr></thead>
+                <thead><tr><th>Date</th><th>Type & N°</th><th>Client</th><th>Objet</th><th>Total</th><th>Action</th></tr></thead>
                 <tbody id="history-body">
-                    <tr><td colspan="5" style="text-align:center; color:#999;">Chargement...</td></tr>
+                    <tr><td colspan="6" style="text-align:center; color:#999;">Chargement...</td></tr>
                 </tbody>
             </table>
         </div>
