@@ -1,8 +1,11 @@
 /* ==========================================================================
-   MODULE FACTURATION - "FAST TRACK"
+   MODULE FACTURATION - VERSION FINALE PRO
+   - Numérotation Auto
+   - Réorganisation Lignes (Drag-like)
+   - PDF Centré et Structuré
    ========================================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, query, orderBy, limit, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // --- VOTRE CONFIGURATION FIREBASE ---
 const firebaseConfig = {
@@ -18,88 +21,53 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Stockage temporaire des clients pour la recherche rapide
-let clientsCache = []; 
+let clientsCache = [];
+let historyCache = []; // Pour la recherche locale
 let currentClientId = null;
+let currentInvoiceId = null;
 
-/* ==========================================================================
-   INIT & RECHERCHE RAPIDE
-   ========================================================================== */
+// --- SECURITE ---
+function getVal(id) { const el = document.getElementById(id); return el ? el.value : ""; }
 
+// --- INIT ---
 window.addEventListener('DOMContentLoaded', async () => {
-    // 1. Initialiser la date
     const dateInput = document.getElementById('facture_date');
     if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-    // 2. Ajouter des lignes par défaut
-    window.ajouterTitreSection("1. PRESTATIONS COURANTES");
-    window.ajouterLigne("Cercueil", "NA", 0);
-
-    // 3. Charger les clients en mémoire pour la recherche instantanée
+    // Charger Clients
     const datalist = document.getElementById('clients-datalist');
     if(datalist) {
         try {
             const q = query(collection(db, "dossiers_clients"), orderBy("lastModified", "desc"));
-            const querySnapshot = await getDocs(q);
-            
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                const nomComplet = `${data.nom || ''} ${data.prenom || ''}`;
-                const adresse = data.demeurant || data.adresse_fr || "";
-                
-                clientsCache.push({ id: doc.id, name: nomComplet, address: adresse, defunt: `${data.nom} ${data.prenom}` });
-                
-                const option = document.createElement('option');
-                option.value = nomComplet; 
-                datalist.appendChild(option);
+            const snaps = await getDocs(q);
+            snaps.forEach((doc) => {
+                const d = doc.data();
+                const nom = `${d.nom || ''} ${d.prenom || ''}`;
+                clientsCache.push({ id: doc.id, name: nom, address: d.demeurant || "", defunt: `${d.nom} ${d.prenom}` });
+                const opt = document.createElement('option');
+                opt.value = nom;
+                datalist.appendChild(opt);
             });
-        } catch (e) { console.error("Erreur chargement clients:", e); }
+        } catch (e) { console.error(e); }
     }
 
-    // 4. CHECK URL - SI UN ID EST PRESENT, CHARGER LE CLIENT AUTOMATIQUEMENT
-    const urlParams = new URLSearchParams(window.location.search);
-    const idFromUrl = urlParams.get('id');
-    if(idFromUrl) {
-        window.chargerClientById(idFromUrl);
-    }
+    // Charger Historique
+    window.chargerHistorique();
+
+    // Lignes défaut
+    window.ajouterTitreSection("1. PRESTATIONS");
+    window.ajouterLigne("Cercueil", "NA", 0);
 });
 
-// NOUVELLE FONCTION POUR CHARGER DEPUIS L'ID (ADMIN -> FACTURATION)
-window.chargerClientById = async function(id) {
-    try {
-        const docRef = doc(db, "dossiers_clients", id);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            currentClientId = id;
-            
-            // Remplir les champs
-            const nomComplet = data.soussigne || `${data.nom || ''} ${data.prenom || ''}`;
-            const adresse = data.demeurant || data.adresse_fr || "";
-            const defunt = `${data.nom || ''} ${data.prenom || ''}`;
-
-            document.getElementById('facture_nom').value = nomComplet;
-            document.getElementById('facture_adresse').value = adresse;
-            document.getElementById('facture_defunt').value = defunt;
-            
-            // Petit effet visuel
-            document.getElementById('facture_nom').style.backgroundColor = "#dcfce7";
-        }
-    } catch (e) { console.error("Erreur chargement client par ID:", e); }
-}
-
-// AUTO-COMPLETION (Quand on tape manuellement)
+// --- AUTO-COMPLETE CLIENT ---
 window.checkClientAuto = function() {
-    const val = document.getElementById('facture_nom').value;
-    // Chercher si le nom tapé correspond exactement à un client connu
+    const val = getVal('facture_nom');
     const found = clientsCache.find(c => c.name === val);
-    
     if (found) {
         document.getElementById('facture_adresse').value = found.address;
         document.getElementById('facture_defunt').value = found.defunt;
         currentClientId = found.id;
-        document.getElementById('facture_nom').style.backgroundColor = "#dcfce7"; 
+        document.getElementById('facture_nom').style.backgroundColor = "#dcfce7";
     } else {
         currentClientId = null;
         document.getElementById('facture_nom').style.backgroundColor = "white";
@@ -107,19 +75,33 @@ window.checkClientAuto = function() {
 };
 
 /* ==========================================================================
-   LIGNES & CALCULS
+   GESTION TABLEAU (AJOUT & DEPLACEMENT)
    ========================================================================== */
 
-window.ajouterLigne = function(desc = "", tva = "NA", prix = 0) {
+window.ajouterLigne = function(desc = "", tva = "NA", prix = 0, typePrest = "courant") {
     const tbody = document.getElementById('lines-body');
     const tr = document.createElement('tr');
     tr.dataset.type = "line";
+    
+    // Sélection Obligatoire / Optionnel
+    const selectedCourant = typePrest === "courant" ? "selected" : "";
+    const selectedOption = typePrest === "option" ? "selected" : "";
+
     tr.innerHTML = `
-        <td style="padding-left:10px;"><input class="l-desc" value="${desc}" placeholder="Désignation"></td>
-        <td style="text-align:center;"><input class="l-tva" value="${tva}" style="text-align:center; width:50px;"></td>
+        <td style="padding-left:10px;"><input class="l-desc" value="${desc}" placeholder="..."></td>
+        <td>
+            <select class="l-type-prest" style="font-size:0.8rem; text-align:center;">
+                <option value="courant" ${selectedCourant}>Courant (Oblig.)</option>
+                <option value="option" ${selectedOption}>Optionnel</option>
+            </select>
+        </td>
+        <td style="text-align:center;"><input class="l-tva" value="${tva}" style="text-align:center;"></td>
         <td style="text-align:right;"><input type="number" class="l-prix" value="${prix}" step="0.01" style="text-align:right;" onchange="window.recalculer()"></td>
-        <td></td>
-        <td style="text-align:center;"><i class="fas fa-trash" style="color:red; cursor:pointer;" onclick="this.closest('tr').remove(); window.recalculer();"></i></td>
+        <td style="text-align:center; white-space:nowrap;">
+            <i class="fas fa-arrow-up move-btn" onclick="window.moveRow(this, -1)" title="Monter"></i>
+            <i class="fas fa-arrow-down move-btn" onclick="window.moveRow(this, 1)" title="Descendre"></i>
+            <i class="fas fa-trash move-btn" style="color:red; margin-left:5px;" onclick="this.closest('tr').remove(); window.recalculer();"></i>
+        </td>
     `;
     tbody.appendChild(tr);
     window.recalculer();
@@ -132,9 +114,24 @@ window.ajouterTitreSection = function(titre = "NOUVELLE SECTION") {
     tr.className = "section-row"; 
     tr.innerHTML = `
         <td colspan="4"><input class="l-desc" value="${titre}" style="font-weight:bold; padding-left:10px; width:100%;"></td>
-        <td style="text-align:center;"><i class="fas fa-trash" style="color:red; cursor:pointer;" onclick="this.closest('tr').remove(); window.recalculer();"></i></td>
+        <td style="text-align:center; white-space:nowrap;">
+            <i class="fas fa-arrow-up move-btn" onclick="window.moveRow(this, -1)"></i>
+            <i class="fas fa-arrow-down move-btn" onclick="window.moveRow(this, 1)"></i>
+            <i class="fas fa-trash move-btn" style="color:red; margin-left:5px;" onclick="this.closest('tr').remove(); window.recalculer();"></i>
+        </td>
     `;
     tbody.appendChild(tr);
+};
+
+// FONCTION DE DEPLACEMENT (MONTER / DESCENDRE)
+window.moveRow = function(btn, direction) {
+    const row = btn.closest('tr');
+    const tbody = row.parentNode;
+    if (direction === -1 && row.previousElementSibling) {
+        tbody.insertBefore(row, row.previousElementSibling);
+    } else if (direction === 1 && row.nextElementSibling) {
+        tbody.insertBefore(row.nextElementSibling, row);
+    }
 };
 
 window.recalculer = function() {
@@ -151,74 +148,214 @@ window.recalculer = function() {
 };
 
 /* ==========================================================================
-   SAUVEGARDE & PDF
+   SAUVEGARDE & NUMEROTATION AUTO
    ========================================================================== */
+
+async function getNextInvoiceNumber() {
+    try {
+        const q = query(collection(db, "factures"), orderBy("created_at", "desc"), limit(1));
+        const snaps = await getDocs(q);
+        let lastNum = 0;
+        if (!snaps.empty) {
+            const lastDoc = snaps.docs[0].data();
+            if (lastDoc.numero && lastDoc.numero.includes('-')) {
+                // Format attendu : 2026-001
+                const parts = lastDoc.numero.split('-');
+                if(parts.length > 1) lastNum = parseInt(parts[1]);
+            }
+        }
+        const year = new Date().getFullYear();
+        const next = lastNum + 1;
+        // Formatage : 2026-001, 2026-002...
+        return `${year}-${next.toString().padStart(3, '0')}`;
+    } catch (e) {
+        console.error("Erreur numérotation", e);
+        return "2026-001"; // Fallback
+    }
+}
 
 window.sauvegarderFactureBase = async function() {
     const btn = document.querySelector('.btn-green');
     if(btn) btn.innerHTML = 'Envoi...';
     
-    const nom = document.getElementById('facture_nom').value;
+    const nom = getVal('facture_nom');
     if(!nom) { 
         if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer'; 
         return alert("Nom du client obligatoire"); 
     }
 
     try {
-        // Si nouveau prospect, on le crée
+        // 1. Prospect auto
         if (!currentClientId) {
             const newClient = {
-                nom: nom.split(' ')[0] || nom,
-                prenom: nom.split(' ').slice(1).join(' ') || "",
-                soussigne: nom,
-                demeurant: document.getElementById('facture_adresse').value,
+                nom: nom,
+                demeurant: getVal('facture_adresse'),
                 lastModified: new Date().toISOString(),
-                type_dossier: "PROSPECT",
-                notes: "Depuis Facturation"
+                type_dossier: "PROSPECT"
             };
             const docRef = await addDoc(collection(db, "dossiers_clients"), newClient);
             currentClientId = docRef.id;
         }
 
-        const factureData = {
-            type: document.getElementById('doc_type') ? document.getElementById('doc_type').value : "DEVIS",
-            numero: document.getElementById('facture_numero').value,
-            date: document.getElementById('facture_date').value,
-            sujet: document.getElementById('facture_sujet').value,
+        // 2. Numérotation Automatique (Si nouveau)
+        let numFinal = getVal('facture_numero');
+        if (!currentInvoiceId && (numFinal === 'AUTO' || numFinal === '(Auto)' || numFinal === '')) {
+            numFinal = await getNextInvoiceNumber();
+            document.getElementById('facture_numero').value = numFinal;
+        }
+
+        const data = {
+            type: getVal('doc_type'),
+            numero: numFinal,
+            date: getVal('facture_date'),
+            sujet: getVal('facture_sujet'),
             client_id: currentClientId,
             client_nom: nom,
+            client_adresse: getVal('facture_adresse'),
+            defunt_nom: getVal('facture_defunt'),
             total: document.getElementById('total-ttc').textContent,
             lignes: [],
             created_at: new Date().toISOString()
         };
 
+        // Capture lignes avec le type (courant/option)
         document.querySelectorAll('#lines-body tr').forEach(row => {
             const type = row.dataset.type;
             const desc = row.querySelector('.l-desc') ? row.querySelector('.l-desc').value : "";
-            const prix = (type === 'line' && row.querySelector('.l-prix')) ? row.querySelector('.l-prix').value : "";
-            const tva = (type === 'line' && row.querySelector('.l-tva')) ? row.querySelector('.l-tva').value : "";
-            factureData.lignes.push({ type, desc, prix, tva });
+            const prix = (type === 'line') ? row.querySelector('.l-prix').value : "";
+            const tva = (type === 'line') ? row.querySelector('.l-tva').value : "";
+            const typePrest = (type === 'line') ? row.querySelector('.l-type-prest').value : ""; // 'courant' ou 'option'
+            
+            data.lignes.push({ type, desc, prix, tva, typePrest });
         });
 
-        await addDoc(collection(db, "factures"), factureData);
-        alert("Enregistré !");
+        if(currentInvoiceId) {
+            await updateDoc(doc(db, "factures", currentInvoiceId), data);
+            alert("Document mis à jour !");
+        } else {
+            await addDoc(collection(db, "factures"), data);
+            alert("Document créé avec le N° " + numFinal);
+        }
         
-    } catch (e) { alert("Erreur: " + e.message); }
-    
+        window.chargerHistorique(); // Refresh liste
+        
+    } catch (e) { console.error(e); alert("Erreur: " + e.message); }
     if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer';
 };
+
+/* ==========================================================================
+   HISTORIQUE & RECHERCHE
+   ========================================================================== */
+
+window.chargerHistorique = async function() {
+    const tbody = document.getElementById('history-body');
+    if(!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6">Chargement...</td></tr>';
+
+    try {
+        const q = query(collection(db, "factures"), orderBy("created_at", "desc"), limit(50));
+        const snaps = await getDocs(q);
+        
+        historyCache = []; // Stockage pour recherche locale
+        
+        snaps.forEach(docSnap => {
+            const d = docSnap.data();
+            d.id = docSnap.id;
+            historyCache.push(d);
+        });
+        
+        window.renderHistorique(historyCache);
+
+    } catch (e) { console.error(e); }
+};
+
+window.renderHistorique = function(items) {
+    const tbody = document.getElementById('history-body');
+    tbody.innerHTML = '';
+    
+    if(items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Aucun document trouvé.</td></tr>';
+        return;
+    }
+
+    items.forEach(d => {
+        const dateF = new Date(d.created_at).toLocaleDateString();
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${dateF}</td>
+            <td><span class="status-tag">${d.type}</span> <strong>${d.numero}</strong></td>
+            <td>${d.client_nom}</td>
+            <td>${d.sujet || '-'}</td>
+            <td style="font-weight:bold;">${d.total}</td>
+            <td>
+                <button onclick="window.chargerFacturePourModif('${d.id}')" style="cursor:pointer; border:1px solid #ccc; background:white; padding:2px 5px;">
+                    <i class="fas fa-pen"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+};
+
+window.filtrerHistorique = function() {
+    const term = document.getElementById('history-search').value.toLowerCase();
+    const filtered = historyCache.filter(item => 
+        (item.client_nom && item.client_nom.toLowerCase().includes(term)) ||
+        (item.numero && item.numero.toLowerCase().includes(term)) ||
+        (item.sujet && item.sujet.toLowerCase().includes(term))
+    );
+    window.renderHistorique(filtered);
+};
+
+window.chargerFacturePourModif = async function(id) {
+    try {
+        const docRef = doc(db, "factures", id);
+        const snap = await getDoc(docRef);
+        if(!snap.exists()) return alert("Document introuvable");
+
+        const d = snap.data();
+        currentInvoiceId = id;
+        currentClientId = d.client_id;
+
+        document.getElementById('doc_type').value = d.type;
+        document.getElementById('facture_numero').value = d.numero;
+        document.getElementById('facture_date').value = d.date;
+        document.getElementById('facture_nom').value = d.client_nom;
+        document.getElementById('facture_adresse').value = d.client_adresse || "";
+        document.getElementById('facture_defunt').value = d.defunt_nom || "";
+        document.getElementById('facture_sujet').value = d.sujet || "";
+
+        const tbody = document.getElementById('lines-body');
+        tbody.innerHTML = '';
+        
+        d.lignes.forEach(l => {
+            if(l.type === 'section') window.ajouterTitreSection(l.desc);
+            else window.ajouterLigne(l.desc, l.tva, l.prix, l.typePrest || "courant");
+        });
+
+        window.recalculer();
+        window.scrollTo(0,0);
+        alert(`Document ${d.numero} chargé.`);
+
+    } catch (e) { console.error(e); }
+};
+
+/* ==========================================================================
+   GENERATION PDF (LAYOUT CENTRÉ & COLONNES)
+   ========================================================================== */
 
 window.genererPDFFacture = function() {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF();
-    const type = document.getElementById('doc_type') ? document.getElementById('doc_type').value : "DEVIS";
-    const numero = document.getElementById('facture_numero').value || "PROVISOIRE";
+    
+    const type = getVal('doc_type');
+    const numero = getVal('facture_numero');
 
-    // Logo
+    // LOGO
     const imgElement = document.getElementById('logo-source');
     if (imgElement && imgElement.naturalWidth > 0) pdf.addImage(imgElement, 'PNG', 15, 15, 35, 35);
-
-    // Emetteur
+    
+    // Header Société
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(22, 101, 52); 
     pdf.text("POMPES FUNEBRES", 15, 55);
     pdf.text("SOLIDAIRE PERPIGNAN", 15, 60);
@@ -229,18 +366,19 @@ window.genererPDFFacture = function() {
     pdf.text("SIRET : 539 270 298 00042", 15, 74);
     pdf.text("Tél : +33 7 55 18 27 77", 15, 78);
 
-    // Destinataire
-    pdf.setFillColor(240, 240, 240); pdf.rect(120, 20, 75, 40, 'F');
+    // Client
+    pdf.setFillColor(240, 240, 240); 
+    pdf.rect(120, 20, 75, 40, 'F');
     pdf.setFont("helvetica", "bold"); pdf.setTextColor(0);
     pdf.text("Famille", 125, 28);
     pdf.setFont("helvetica", "normal");
-    pdf.text(document.getElementById('facture_nom').value, 125, 35);
-    const adr = pdf.splitTextToSize(document.getElementById('facture_adresse').value, 70);
-    pdf.text(adr, 125, 42);
+    pdf.text(getVal('facture_nom'), 125, 35);
+    const adresse = pdf.splitTextToSize(getVal('facture_adresse'), 70);
+    pdf.text(adresse, 125, 42);
 
-    // Titre
+    // Titre Centré
     let y = 90;
-    const sujet = document.getElementById('facture_sujet').value.toUpperCase();
+    const sujet = getVal('facture_sujet').toUpperCase();
     if(sujet) {
         pdf.setFont("helvetica", "bold"); pdf.setFontSize(11);
         pdf.text(sujet, 15, y);
@@ -248,35 +386,72 @@ window.genererPDFFacture = function() {
     }
     
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(22, 101, 52);
-    let dateFr = document.getElementById('facture_date').value;
+    let dateFr = getVal('facture_date');
     if(dateFr.includes('-')) dateFr = dateFr.split('-').reverse().join('-');
+    
+    // CENTRAGE DU TITRE DU DOCUMENT
     pdf.text(`${type} N° ${numero} du ${dateFr}`, 105, y, {align:"center"});
     y += 10;
 
-    // Tableau
+    // PREPARATION TABLEAU
     const rows = [];
     document.querySelectorAll('#lines-body tr').forEach(row => {
-        const desc = row.querySelector('.l-desc').value;
+        const desc = row.querySelector('.l-desc') ? row.querySelector('.l-desc').value : "";
         if (row.dataset.type === 'section') {
-            rows.push([{ content: desc, colSpan: 4, styles: {fillColor: [255, 237, 213], textColor: [0,0,0], fontStyle: 'bold'} }]);
+            // Titre Section
+            rows.push([{
+                content: desc, 
+                colSpan: 4, 
+                styles: {fillColor: [255, 237, 213], textColor: [0,0,0], fontStyle: 'bold'}
+            }]);
         } else {
-            const tva = row.querySelector('.l-tva').value;
-            const prixVal = row.querySelector('.l-prix').value;
-            const prix = prixVal ? parseFloat(prixVal).toFixed(2) + ' €' : '';
-            rows.push([desc, tva, prix, ""]); 
+            const tva = row.querySelector('.l-tva') ? row.querySelector('.l-tva').value : "";
+            const prixVal = row.querySelector('.l-prix') ? row.querySelector('.l-prix').value : 0;
+            const prixFmt = parseFloat(prixVal).toFixed(2) + ' €';
+            
+            const typePrest = row.querySelector('.l-type-prest') ? row.querySelector('.l-type-prest').value : "courant";
+            
+            // LOGIQUE COLONNES PRIX (Courant OU Optionnel)
+            let colCourant = "";
+            let colOption = "";
+            
+            if(typePrest === "courant") colCourant = prixFmt;
+            else colOption = prixFmt;
+
+            rows.push([desc, tva, colCourant, colOption]); 
         }
     });
 
+    // TABLEAU AUTO (CENTRAGE COLONNES)
     pdf.autoTable({
         startY: 100,
         head: [['', 'TVA', 'PRIX TTC PRESTATIONS\nCOURANTES', 'PRIX TTC PRESTATIONS\nCOMPLEMENTAIRES\nOPTIONNELLES']],
         body: rows,
         theme: 'grid',
-        headStyles: { fillColor: [220, 252, 231], textColor: [22, 101, 52], lineColor: [200, 200, 200], lineWidth: 0.1 },
-        columnStyles: { 0: { cellWidth: 100 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 40, halign: 'right' }, 3: { cellWidth: 35 } }
+        headStyles: { 
+            fillColor: [220, 252, 231], 
+            textColor: [22, 101, 52], 
+            lineColor: [100, 100, 100], 
+            lineWidth: 0.1,
+            halign: 'center', // Horizontal Center
+            valign: 'middle'  // Vertical Center
+        },
+        styles: { 
+            fontSize: 9, 
+            cellPadding: 2, 
+            lineColor: [200, 200, 200], 
+            lineWidth: 0.1,
+            valign: 'middle' // Cellules verticales centrées
+        },
+        columnStyles: { 
+            0: { cellWidth: 90 }, 
+            1: { cellWidth: 15, halign: 'center' },
+            2: { cellWidth: 40, halign: 'right' }, // Prix alignés à droite pour lisibilité
+            3: { cellWidth: 40, halign: 'right' }
+        }
     });
 
-    // Totaux
+    // TOTAL
     let finalY = pdf.lastAutoTable.finalY + 10;
     pdf.setDrawColor(22, 101, 52); pdf.setLineWidth(0.5);
     pdf.rect(140, finalY, 50, 12);
@@ -284,7 +459,7 @@ window.genererPDFFacture = function() {
     pdf.text("Total (TTC)", 142, finalY + 8);
     pdf.text(document.getElementById('total-ttc').textContent, 188, finalY + 8, {align:'right'});
 
-    // Footer
+    // FOOTER
     finalY += 25;
     pdf.setFontSize(8); pdf.setTextColor(255, 0, 0); 
     pdf.text("NB :", 15, finalY);
