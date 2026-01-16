@@ -11,20 +11,17 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     <style>
-        /* DESIGN FACTURATION */
         .invoice-wrapper { max-width: 1000px; margin: 30px auto; padding: 20px; background: white; min-height: 100vh; }
         .top-bar { border-top: 5px solid #eab308; margin-bottom: 30px; } 
         .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; }
-        
         .client-box { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 15px; }
         
-        /* TABLEAU */
+        /* TABLEAU SAISIE */
         .invoice-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
         .invoice-table th { background: #dcfce7; border: 1px solid #166534; padding: 10px; text-align: center; color: #14532d; font-weight: bold; }
         .invoice-table td { border: 1px solid #e5e7eb; padding: 0; }
         .invoice-table input { width: 100%; padding: 8px; border: none; outline: none; background: transparent; font-family: inherit; }
         
-        /* Styles Lignes */
         tr.section-row td { background: #ffedd5 !important; border-color: #fdba74; }
         tr.section-row input { font-weight: bold; color: #9a3412; text-transform: uppercase; }
 
@@ -32,6 +29,14 @@
         .total-box { border: 2px solid #166534; padding: 10px 20px; font-size: 1.3rem; font-weight: bold; color: #166534; background: #f0fdf4; }
         
         .fast-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px; }
+
+        /* TABLEAU HISTORIQUE (NOUVEAU) */
+        .history-section { margin-top: 60px; border-top: 2px dashed #ccc; padding-top: 20px; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .history-table th { background: #1e293b; color: white; padding: 10px; text-align: left; }
+        .history-table td { padding: 10px; border-bottom: 1px solid #eee; }
+        .history-table tr:hover { background: #f8fafc; }
+        .status-tag { padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: bold; background: #e0f2fe; color: #0369a1; }
     </style>
 </head>
 <body>
@@ -40,30 +45,28 @@
     <div class="invoice-wrapper">
         <div class="top-bar"></div>
 
-        <div style="margin-bottom: 20px;">
+        <div style="margin-bottom: 20px; display:flex; justify-content:space-between;">
             <a href="index.html" class="btn btn-outline" style="text-decoration:none; border:none;">
                 <i class="fas fa-arrow-left"></i> Retour au Hub
             </a>
+            <button onclick="window.location.reload()" class="btn btn-outline">
+                <i class="fas fa-plus"></i> Nouveau Devis Vierge
+            </button>
         </div>
 
         <div class="header-grid">
             <div class="company-details">
                 <img src="Logo.png" style="height: 90px; margin-bottom: 15px;">
                 <h3 style="color:#166534; margin:0;">POMPES FUNEBRES<br>SOLIDAIRE PERPIGNAN</h3>
-                <p style="font-size:0.9rem; color:#555; line-height:1.4;">
-                    32 boulevard Léon Jean Grégory Thuir<br>
-                    Tél : +33 7 55 18 27 77<br>
-                    SIRET : 539 270 298 00042
-                </p>
+                <p style="font-size:0.9rem; color:#555;">32 boulevard Léon Jean Grégory Thuir<br>SIRET : 539 270 298 00042</p>
             </div>
 
             <div class="client-box">
                 <h4 style="margin-top:0;">Famille / Client</h4>
-                <input id="facture_nom" list="clients-datalist" class="fast-input" placeholder="Nom du client (Recherche auto)..." onchange="window.checkClientAuto()">
+                <input id="facture_nom" list="clients-datalist" class="fast-input" placeholder="Rechercher Client..." onchange="window.checkClientAuto()">
                 <datalist id="clients-datalist"></datalist>
-                
                 <input id="facture_adresse" class="fast-input" placeholder="Adresse...">
-                <input id="facture_defunt" class="fast-input" placeholder="Concerne le défunt (Optionnel)">
+                <input id="facture_defunt" class="fast-input" placeholder="Défunt concerné...">
             </div>
         </div>
 
@@ -72,17 +75,15 @@
                 <label style="font-size:0.8rem; font-weight:bold; color:#666;">OBJET :</label>
                 <input id="facture_sujet" placeholder="EXHUMATION..." style="font-size:1.1rem; font-weight:bold; width:100%; border:none; border-bottom:1px solid #ccc; text-transform:uppercase;">
             </div>
-            
             <div style="text-align:right;">
                 <select id="doc_type" style="font-weight:bold; color:#166534; border:1px solid #166534; padding:5px; font-size:1rem; border-radius:4px;">
                     <option value="DEVIS">DEVIS</option>
                     <option value="FACTURE">FACTURE</option>
                 </select>
-                
                 <span style="font-weight:bold; margin-left:10px;">N°</span>
                 <input id="facture_numero" value="AUTO" style="width:80px; font-weight:bold; border:none; text-align:right; color:var(--accent);">
                 <br>
-                <span style="font-size:0.9rem;">Date : </span><input type="date" id="facture_date" style="border:none; font-family:inherit;">
+                <span style="font-size:0.9rem;">Date : </span><input type="date" id="facture_date" style="border:none;">
             </div>
         </div>
 
@@ -100,13 +101,12 @@
                 <tr>
                     <th style="width:45%">DÉSIGNATION</th>
                     <th style="width:10%">TVA</th>
-                    <th style="width:20%">PRIX TTC<br>COURANT</th>
-                    <th style="width:20%">PRIX TTC<br>OPTION</th>
+                    <th style="width:20%">PRIX TTC COURANT</th>
+                    <th style="width:20%">PRIX TTC OPTION</th>
                     <th style="width:5%"></th>
                 </tr>
             </thead>
-            <tbody id="lines-body">
-                </tbody>
+            <tbody id="lines-body"></tbody>
         </table>
 
         <div class="total-container">
@@ -115,17 +115,19 @@
             </div>
         </div>
 
-        <div style="margin-top:40px; color:#ef4444; font-size:0.85rem;">
-            <strong>NB :</strong>
-            <ul style="list-style:none; padding:0; margin-top:5px; color:#333;">
-                <li>- (NA) TVA non applicable (0%), art 293 B du CGI</li>
-                <li>- Conditions de paiement : 100% à payer à réception</li>
-            </ul>
+        <div class="actions-bar center" style="margin-top:50px; gap:20px;">
+            <button onclick="window.sauvegarderFactureBase()" class="btn btn-green"><i class="fas fa-save"></i> Enregistrer / Mettre à jour</button>
+            <button onclick="window.genererPDFFacture()" class="btn btn-blue big-btn"><i class="fas fa-print"></i> IMPRIMER PDF</button>
         </div>
 
-        <div class="actions-bar center" style="margin-top:50px; gap:20px;">
-            <button onclick="window.sauvegarderFactureBase()" class="btn btn-green"><i class="fas fa-save"></i> Enregistrer</button>
-            <button onclick="window.genererPDFFacture()" class="btn btn-blue big-btn"><i class="fas fa-print"></i> IMPRIMER PDF</button>
+        <div class="history-section">
+            <h3 style="color:#1e293b;"><i class="fas fa-history"></i> Historique des derniers documents</h3>
+            <table class="history-table">
+                <thead><tr><th>Date</th><th>Type & N°</th><th>Client</th><th>Total</th><th>Action</th></tr></thead>
+                <tbody id="history-body">
+                    <tr><td colspan="5" style="text-align:center; color:#999;">Chargement...</td></tr>
+                </tbody>
+            </table>
         </div>
 
     </div>
