@@ -45,10 +45,8 @@ window.addEventListener('DOMContentLoaded', async () => {
             });
         } catch (e) { console.error("Erreur chargement clients", e); }
     }
-
-    // Exemple de départ (Comme sur votre image)
-    window.ajouterTitreSection("1. EXHUMATION");
-    window.ajouterLigne("Creusement de terre", "NA", 685);
+    
+    // Initialisation vide
 });
 
 // --- FONCTIONS PUBLIQUES (CORRECTION DES BOUTONS) ---
@@ -112,7 +110,7 @@ window.recalculer = function() {
     if(totalEl) totalEl.textContent = total.toFixed(2) + ' €';
 };
 
-// 5. SAUVEGARDER
+// 5. SAUVEGARDER (CORRECTION ERREUR TYPE DOCUMENT)
 window.sauvegarderFactureBase = async function() {
     const btn = document.querySelector('.btn-green');
     if(btn) btn.innerHTML = 'Envoi...';
@@ -136,8 +134,19 @@ window.sauvegarderFactureBase = async function() {
             currentClientId = docRef.id;
         }
 
+        // CORRECTION MAJEURE ICI : Lecture correcte du type de document (SELECT ou RADIO)
+        let docType = "DEVIS";
+        const selectType = document.getElementById('doc_type');
+        if(selectType) {
+            docType = selectType.value; // Si c'est un <select>
+        } else {
+            // Si c'est des boutons radio (fallback)
+            const radio = document.querySelector('input[name="doc_type"]:checked');
+            if(radio) docType = radio.value;
+        }
+
         const factureData = {
-            type: document.getElementById('doc_type').value,
+            type: docType,
             numero: document.getElementById('facture_numero').value,
             date: document.getElementById('facture_date').value,
             sujet: document.getElementById('facture_sujet').value,
@@ -170,7 +179,12 @@ window.sauvegarderFactureBase = async function() {
 window.genererPDFFacture = function() {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF();
-    const type = document.getElementById('doc_type').value;
+    
+    // CORRECTION TYPE DOCUMENT
+    let docType = "DEVIS";
+    const selectType = document.getElementById('doc_type');
+    if(selectType) docType = selectType.value;
+    
     const numero = document.getElementById('facture_numero').value;
 
     // --- LOGO & ENTETE ---
@@ -209,7 +223,7 @@ window.genererPDFFacture = function() {
     
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(22, 101, 52);
     const dateFr = document.getElementById('facture_date').value.split('-').reverse().join('-');
-    pdf.text(`${type} N° ${numero} du ${dateFr}`, 105, y, {align:"center"});
+    pdf.text(`${docType} N° ${numero} du ${dateFr}`, 105, y, {align:"center"});
     y += 10;
 
     // --- TABLEAU ---
@@ -277,5 +291,5 @@ window.genererPDFFacture = function() {
     pdf.text("- (NA) TVA non applicable (0%), art 293 B du CGI", 25, finalY);
     pdf.text("- Conditions de paiement : 100% soit " + document.getElementById('total-ttc').textContent + " à payer à réception", 25, finalY + 5);
 
-    pdf.save(`${type}_${numero}.pdf`);
+    pdf.save(`${docType}_${numero}.pdf`);
 };
