@@ -1,10 +1,10 @@
 /* ==========================================================================
-   MODULE FACTURATION - LOGIQUE PRO (NON-ECRASEMENT & NUMEROTATION)
+   MODULE FACTURATION - COMPLET
    ========================================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy, where, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// --- VOTRE CONFIGURATION FIREBASE ---
+// --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyDmsIkTjW2IFkIks5BUAnxLLnc7pnj2e0w",
     authDomain: "pf-solidaire.firebaseapp.com",
@@ -18,10 +18,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let clientsCache = [];
-let currentClientId = null;
-let currentInvoiceId = null; 
-let originalDocType = null; // Pour savoir si on a changé le type en cours de route
+let dossiersCache = []; 
+let historyCache = [];
+let currentDossierId = null;
+let currentInvoiceId = null;
 
 function getVal(id) { const el = document.getElementById(id); return el ? el.value : ""; }
 
@@ -32,18 +32,28 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     initDragAndDrop();
 
-    // Charger Clients
-    const datalist = document.getElementById('clients-datalist');
+    // 1. CHARGER LES DOSSIERS
+    const datalist = document.getElementById('dossiers-datalist');
     if(datalist) {
         try {
             const q = query(collection(db, "dossiers_clients"), orderBy("lastModified", "desc"));
             const snaps = await getDocs(q);
             snaps.forEach((doc) => {
                 const d = doc.data();
-                const nom = `${d.nom || ''} ${d.prenom || ''}`;
-                clientsCache.push({ id: doc.id, name: nom, address: d.demeurant || "", defunt: `${d.nom} ${d.prenom}` });
+                const nomDefunt = `${d.nom || 'Inconnu'} ${d.prenom || ''}`.toUpperCase();
+                const nomMandant = d.soussigne || "Mandant Inconnu";
+                const labelRecherche = `${nomDefunt} (Famille : ${nomMandant})`;
+                
+                dossiersCache.push({ 
+                    id: doc.id, 
+                    label: labelRecherche,
+                    nom_defunt: nomDefunt,
+                    nom_mandant: nomMandant,
+                    adresse_mandant: d.demeurant || d.adresse_fr || ""
+                });
+                
                 const opt = document.createElement('option');
-                opt.value = nom;
+                opt.value = labelRecherche; 
                 datalist.appendChild(opt);
             });
         } catch (e) { console.error(e); }
@@ -52,10 +62,55 @@ window.addEventListener('DOMContentLoaded', async () => {
     window.chargerHistorique();
 });
 
-// --- CHANGEMENT DE MODÈLE (CONTENU) ---
+// --- FONCTION ANNULER / NOUVEAU ---
+window.annulerModifications = function() {
+    if(confirm("Voulez-vous annuler les modifications et vider le formulaire ?")) {
+        // On remet tout à zéro
+        currentInvoiceId = null;
+        currentDossierId = null;
+        
+        // Vider les champs
+        document.getElementById('search_dossier').value = "";
+        document.getElementById('search_dossier').style.backgroundColor = "white";
+        document.getElementById('facture_client').value = "";
+        document.getElementById('facture_adresse').value = "";
+        document.getElementById('facture_defunt').value = "";
+        document.getElementById('facture_sujet_select').value = "";
+        document.getElementById('facture_sujet').value = "";
+        document.getElementById('facture_numero').value = "(Auto)";
+        
+        // Vider tableau
+        document.getElementById('lines-body').innerHTML = "";
+        
+        // Remettre date jour
+        document.getElementById('facture_date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('total-ttc').textContent = "0.00 €";
+        
+        alert("Formulaire réinitialisé.");
+    }
+};
+
+// --- SELECTION INTELLIGENTE ---
+window.selectionnerDossier = function() {
+    const val = getVal('search_dossier');
+    const found = dossiersCache.find(d => d.label === val);
+    
+    if (found) {
+        document.getElementById('facture_client').value = found.nom_mandant;
+        document.getElementById('facture_adresse').value = found.adresse_mandant;
+        document.getElementById('facture_defunt').value = found.nom_defunt;
+        currentDossierId = found.id;
+        document.getElementById('search_dossier').style.backgroundColor = "#dcfce7";
+    } else {
+        currentDossierId = null;
+        document.getElementById('search_dossier').style.backgroundColor = "white";
+    }
+};
+
+// --- CHANGEMENT DE MODÈLE ---
 window.changerModele = function(type) {
     const tbody = document.getElementById('lines-body');
-    tbody.innerHTML = ''; 
+    tbody.innerHTML = '';
     document.getElementById('facture_sujet').value = type;
 
     // SECTION 1
@@ -104,6 +159,7 @@ window.changerModele = function(type) {
         window.ajouterLigne("Ambulance (Aéroport vers lieu d'inhumation)", "NA", 200, "courant");
         window.ajouterLigne("Démarches Consulaires / Douanières", "NA", 150, "courant");
     }
+    
     window.recalculer();
 };
 
@@ -135,21 +191,6 @@ function attachDragEvents(row) {
     row.addEventListener('dragend', () => { row.classList.remove('dragging'); });
 }
 
-// --- CLIENT ---
-window.checkClientAuto = function() {
-    const val = getVal('facture_nom');
-    const found = clientsCache.find(c => c.name === val);
-    if (found) {
-        document.getElementById('facture_adresse').value = found.address;
-        document.getElementById('facture_defunt').value = found.defunt;
-        currentClientId = found.id;
-        document.getElementById('facture_nom').style.backgroundColor = "#dcfce7";
-    } else {
-        currentClientId = null;
-        document.getElementById('facture_nom').style.backgroundColor = "white";
-    }
-};
-
 // --- TABLEAU ---
 window.ajouterLigne = function(desc = "", tva = "NA", prix = 0, typePrest = "courant") {
     const tbody = document.getElementById('lines-body');
@@ -174,6 +215,7 @@ window.ajouterLigne = function(desc = "", tva = "NA", prix = 0, typePrest = "cou
             <i class="fas fa-trash" style="color:red; cursor:pointer;" onclick="this.closest('tr').remove(); window.recalculer();"></i>
         </td>
     `;
+    
     attachDragEvents(tr);
     tbody.appendChild(tr);
     window.recalculer();
@@ -208,94 +250,64 @@ window.recalculer = function() {
     if(totalEl) totalEl.textContent = total.toFixed(2) + ' €';
 };
 
-/* ==========================================================================
-   SAUVEGARDE & NUMEROTATION LOGIQUE
-   ========================================================================== */
-
-// Fonction pour générer D-2026-001 ou F-2026-001
-async function getNextNumber(docType) {
-    // docType = "DEVIS" ou "FACTURE"
-    const prefix = docType === "DEVIS" ? "D" : "F";
-    const currentYear = new Date().getFullYear();
-    
+// --- SAUVEGARDE & NUMEROTATION ---
+async function getNextInvoiceNumber() {
     try {
-        // On cherche le dernier doc de CE type
-        const q = query(collection(db, "factures"), where("type", "==", docType), orderBy("created_at", "desc"), limit(1));
+        const q = query(collection(db, "factures"), orderBy("created_at", "desc"), limit(1));
         const snaps = await getDocs(q);
-        
-        let nextSeq = 1;
-        
+        let lastNum = 0;
         if (!snaps.empty) {
             const lastDoc = snaps.docs[0].data();
-            const lastNum = lastDoc.numero; 
-            // Format attendu : X-2026-005
-            if (lastNum && lastNum.includes('-')) {
-                const parts = lastNum.split('-'); // ["F", "2026", "005"]
-                if (parts.length === 3 && parseInt(parts[1]) === currentYear) {
-                    nextSeq = parseInt(parts[2]) + 1;
-                }
+            if (lastDoc.numero && lastDoc.numero.includes('-')) {
+                const parts = lastDoc.numero.split('-');
+                if(parts.length > 1) lastNum = parseInt(parts[1]);
             }
         }
-        
-        // Formatage sur 3 chiffres (ex: 005)
-        const seqStr = nextSeq.toString().padStart(3, '0');
-        return `${prefix}-${currentYear}-${seqStr}`;
-        
-    } catch (e) {
-        console.error("Erreur numérotation", e);
-        return `${prefix}-${currentYear}-001`; // Secours
-    }
+        const year = new Date().getFullYear();
+        const next = lastNum + 1;
+        return `${year}-${next.toString().padStart(3, '0')}`;
+    } catch (e) { return "2026-001"; }
 }
 
 window.sauvegarderFactureBase = async function() {
     const btn = document.querySelector('.btn-green');
     if(btn) btn.innerHTML = 'Envoi...';
     
-    // Vérification Défunt d'abord (car c'est le dossier clé)
+    // IMPORTANT : On vérifie le nom du CLIENT (Mandant)
+    const nomClient = getVal('facture_client');
     const nomDefunt = getVal('facture_defunt');
-    if(!nomDefunt) { if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer'; return alert("Nom du Défunt obligatoire pour créer le dossier."); }
 
-    const selectedType = document.getElementById('doc_type').value; // DEVIS ou FACTURE
+    if(!nomClient) { if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer'; return alert("Nom du Client (Mandant) obligatoire"); }
 
     try {
-        // 1. GESTION DU DOSSIER (PROSPECT)
-        if (!currentClientId) {
+        // Si c'est un nouveau dossier (Saisie libre), on le crée pour le futur
+        if (!currentDossierId) {
             const newClient = {
                 nom: nomDefunt.split(' ')[0] || "Défunt",
                 prenom: nomDefunt.split(' ').slice(1).join(' ') || "",
-                soussigne: getVal('facture_client'), // Le payeur
+                soussigne: nomClient, // Le mandant
                 demeurant: getVal('facture_adresse'),
                 lastModified: new Date().toISOString(),
-                type_dossier: "PROSPECT"
+                type_dossier: "PROSPECT",
+                notes: "Créé depuis Facturation"
             };
             const docRef = await addDoc(collection(db, "dossiers_clients"), newClient);
-            currentClientId = docRef.id;
+            currentDossierId = docRef.id;
         }
 
-        // 2. DETECTION DU CAS "CONVERSION" (Devis -> Facture)
-        // Si on a chargé un document (ID existe) MAIS que le type a changé (Devis -> Facture)
-        // ALORS on considère que c'est une NOUVELLE création (on vide l'ID)
-        if (currentInvoiceId && originalDocType && originalDocType !== selectedType) {
-            currentInvoiceId = null; // On force la création d'un nouveau doc
-            console.log("Conversion détectée : Création d'un nouveau document.");
-        }
-
-        // 3. NUMEROTATION
         let numFinal = getVal('facture_numero');
-        // Si c'est un nouveau doc OU si le numéro est "AUTO"
-        if (!currentInvoiceId || numFinal === 'AUTO' || numFinal === '(Auto)') {
-            numFinal = await getNextNumber(selectedType);
+        if (!currentInvoiceId && (numFinal === 'AUTO' || numFinal === '(Auto)' || numFinal === '')) {
+            numFinal = await getNextInvoiceNumber();
             document.getElementById('facture_numero').value = numFinal;
         }
 
-        // 4. PREPARATION DONNEES
         const data = {
-            type: selectedType,
+            type: getVal('doc_type'),
             numero: numFinal,
             date: getVal('facture_date'),
             sujet: getVal('facture_sujet') || document.getElementById('facture_sujet_select').value, 
-            client_id: currentClientId,
-            client_nom: getVal('facture_client'), // Mandant
+            client_id: currentDossierId,
+            client_nom: nomClient, // Mandant
             client_adresse: getVal('facture_adresse'),
             defunt_nom: nomDefunt,
             total: document.getElementById('total-ttc').textContent,
@@ -312,17 +324,14 @@ window.sauvegarderFactureBase = async function() {
             data.lignes.push({ type, desc, prix, tva, typePrest });
         });
 
-        // 5. ENVOI
         if(currentInvoiceId) {
             await updateDoc(doc(db, "factures", currentInvoiceId), data);
-            alert("Document mis à jour avec succès !");
+            alert("Document mis à jour !");
         } else {
             await addDoc(collection(db, "factures"), data);
-            alert(`Nouveau document créé : ${numFinal}`);
+            alert("Document créé avec le N° " + numFinal);
         }
-        
         window.chargerHistorique();
-        
     } catch (e) { console.error(e); alert("Erreur: " + e.message); }
     if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer';
 };
@@ -352,13 +361,10 @@ window.renderHistorique = function(items) {
 
     items.forEach(d => {
         const dateF = new Date(d.created_at).toLocaleDateString();
-        // Couleur différente selon Devis ou Facture
-        const colorTag = d.type === "FACTURE" ? "background:#dcfce7; color:#166534;" : "background:#e0f2fe; color:#0369a1;";
-        
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${dateF}</td>
-            <td><span class="status-tag" style="${colorTag}">${d.type}</span> <strong>${d.numero}</strong></td>
+            <td><span class="status-tag">${d.type}</span> <strong>${d.numero}</strong></td>
             <td>
                 <div><small>Défunt:</small> <b>${d.defunt_nom}</b></div>
                 <div style="font-size:0.8em; color:#666;">Client: ${d.client_nom}</div>
@@ -401,13 +407,12 @@ window.chargerFacturePourModif = async function(id) {
 
         const d = snap.data();
         currentInvoiceId = id;
-        currentClientId = d.client_id;
-        originalDocType = d.type; // On mémorise le type d'origine (DEVIS ou FACTURE)
+        currentDossierId = d.client_id;
 
         document.getElementById('doc_type').value = d.type;
         document.getElementById('facture_numero').value = d.numero;
         document.getElementById('facture_date').value = d.date;
-        document.getElementById('facture_client').value = d.client_nom;
+        document.getElementById('facture_client').value = d.client_nom; // Mandant
         document.getElementById('facture_adresse').value = d.client_adresse || "";
         document.getElementById('facture_defunt').value = d.defunt_nom || "";
         document.getElementById('facture_sujet').value = d.sujet || "";
