@@ -1,3 +1,6 @@
+/* ==========================================================================
+   MODULE FACTURATION - SÉCURISÉ
+   ========================================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -18,10 +21,10 @@ const db = getFirestore(app);
 let clientsCache = [];
 let currentClientId = null;
 
-// Fonction utilitaire pour éviter le crash "Null"
-function safeVal(id) {
+// --- FONCTION DE SÉCURITÉ (Anti-Crash) ---
+function getVal(id) {
     const el = document.getElementById(id);
-    return el ? el.value : ""; // Si l'élément n'existe pas, on renvoie vide sans planter
+    return el ? el.value : "";
 }
 
 // --- INITIALISATION ---
@@ -38,8 +41,13 @@ window.addEventListener('DOMContentLoaded', async () => {
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
                 const nomComplet = `${data.nom || ''} ${data.prenom || ''}`;
-                const adresse = data.demeurant || data.adresse_fr || "";
-                clientsCache.push({ id: doc.id, name: nomComplet, address: adresse, defunt: `${data.nom} ${data.prenom}` });
+                clientsCache.push({ 
+                    id: doc.id, 
+                    name: nomComplet, 
+                    address: data.demeurant || data.adresse_fr || "", 
+                    defunt: `${data.nom} ${data.prenom}` 
+                });
+                
                 const option = document.createElement('option');
                 option.value = nomComplet;
                 datalist.appendChild(option);
@@ -47,7 +55,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { console.error("Erreur chargement clients", e); }
     }
 
-    // Lignes par défaut
     window.ajouterTitreSection("1. PRESTATIONS");
     window.ajouterLigne("Cercueil", "NA", 0);
 });
@@ -55,7 +62,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 // --- FONCTIONS PUBLIQUES ---
 
 window.checkClientAuto = function() {
-    const val = safeVal('facture_nom');
+    const val = getVal('facture_nom');
     const found = clientsCache.find(c => c.name === val);
     
     if (found) {
@@ -113,18 +120,17 @@ window.sauvegarderFactureBase = async function() {
     const btn = document.querySelector('.btn-green');
     if(btn) btn.innerHTML = 'Envoi...';
     
-    const nom = safeVal('facture_nom');
+    const nom = getVal('facture_nom');
     if(!nom) { 
         if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer'; 
-        return alert("Nom du client obligatoire"); 
+        return alert("Le nom du client est obligatoire."); 
     }
 
     try {
-        // Création Prospect
         if (!currentClientId) {
             const newClient = {
                 nom: nom,
-                demeurant: safeVal('facture_adresse'),
+                demeurant: getVal('facture_adresse'),
                 lastModified: new Date().toISOString(),
                 type_dossier: "PROSPECT",
                 notes: "Depuis Facturation"
@@ -133,20 +139,11 @@ window.sauvegarderFactureBase = async function() {
             currentClientId = docRef.id;
         }
 
-        // Récupération sécurisée du type de doc (Select ou Radio)
-        let docType = "DEVIS";
-        const selectDoc = document.getElementById('doc_type');
-        if(selectDoc) docType = selectDoc.value;
-        else {
-            const radio = document.querySelector('input[name="doc_type"]:checked');
-            if(radio) docType = radio.value;
-        }
-
         const factureData = {
-            type: docType,
-            numero: safeVal('facture_numero'),
-            date: safeVal('facture_date'),
-            sujet: safeVal('facture_sujet'),
+            type: getVal('doc_type'),
+            numero: getVal('facture_numero'),
+            date: getVal('facture_date'),
+            sujet: getVal('facture_sujet'),
             client_id: currentClientId,
             client_nom: nom,
             total: document.getElementById('total-ttc').textContent,
@@ -157,8 +154,8 @@ window.sauvegarderFactureBase = async function() {
         document.querySelectorAll('#lines-body tr').forEach(row => {
             const type = row.dataset.type;
             const desc = row.querySelector('.l-desc') ? row.querySelector('.l-desc').value : "";
-            const prix = (type === 'line' && row.querySelector('.l-prix')) ? row.querySelector('.l-prix').value : "";
-            const tva = (type === 'line' && row.querySelector('.l-tva')) ? row.querySelector('.l-tva').value : "";
+            const prix = (type === 'line') ? row.querySelector('.l-prix').value : "";
+            const tva = (type === 'line') ? row.querySelector('.l-tva').value : "";
             factureData.lignes.push({ type, desc, prix, tva });
         });
 
@@ -167,7 +164,7 @@ window.sauvegarderFactureBase = async function() {
         
     } catch (e) { 
         console.error(e);
-        alert("Erreur technique : " + e.message); 
+        alert("Erreur technique: " + e.message); 
     }
     if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer';
 };
@@ -176,18 +173,11 @@ window.genererPDFFacture = function() {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF();
     
-    // Récupération sécurisée des valeurs
-    let docType = "DEVIS";
-    const selectDoc = document.getElementById('doc_type');
-    if(selectDoc) docType = selectDoc.value;
-    else {
-        const radio = document.querySelector('input[name="doc_type"]:checked');
-        if(radio) docType = radio.value;
-    }
-    
-    const numero = safeVal('facture_numero');
+    // Récupération sécurisée
+    const type = getVal('doc_type');
+    const numero = getVal('facture_numero');
 
-    // --- LOGO & ENTETE ---
+    // --- LOGO ---
     const imgElement = document.getElementById('logo-source');
     if (imgElement && imgElement.naturalWidth > 0) pdf.addImage(imgElement, 'PNG', 15, 15, 35, 35);
     
@@ -207,13 +197,14 @@ window.genererPDFFacture = function() {
     pdf.setFont("helvetica", "bold"); pdf.setTextColor(0);
     pdf.text("Famille", 125, 28);
     pdf.setFont("helvetica", "normal");
-    pdf.text(safeVal('facture_nom'), 125, 35);
-    const adresse = pdf.splitTextToSize(safeVal('facture_adresse'), 70);
+    
+    pdf.text(getVal('facture_nom'), 125, 35);
+    const adresse = pdf.splitTextToSize(getVal('facture_adresse'), 70);
     pdf.text(adresse, 125, 42);
 
     // --- TITRE ---
     let y = 90;
-    const sujet = safeVal('facture_sujet').toUpperCase();
+    const sujet = getVal('facture_sujet').toUpperCase();
     if(sujet) {
         pdf.setFont("helvetica", "bold"); pdf.setFontSize(11);
         pdf.text(sujet, 15, y);
@@ -221,17 +212,16 @@ window.genererPDFFacture = function() {
     }
     
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(22, 101, 52);
-    // Gestion date sécurisée
-    let dateFr = safeVal('facture_date');
+    let dateFr = getVal('facture_date');
     if(dateFr.includes('-')) dateFr = dateFr.split('-').reverse().join('-');
     
-    pdf.text(`${docType} N° ${numero} du ${dateFr}`, 105, y, {align:"center"});
+    pdf.text(`${type} N° ${numero} du ${dateFr}`, 105, y, {align:"center"});
     y += 10;
 
     // --- TABLEAU ---
     const rows = [];
     document.querySelectorAll('#lines-body tr').forEach(row => {
-        const desc = row.querySelector('.l-desc') ? row.querySelector('.l-desc').value : "";
+        const desc = row.querySelector('.l-desc').value;
         if (row.dataset.type === 'section') {
             rows.push([{
                 content: desc, 
@@ -239,8 +229,8 @@ window.genererPDFFacture = function() {
                 styles: {fillColor: [255, 237, 213], textColor: [0,0,0], fontStyle: 'bold'}
             }]);
         } else {
-            const tva = row.querySelector('.l-tva') ? row.querySelector('.l-tva').value : "";
-            const prixVal = row.querySelector('.l-prix') ? row.querySelector('.l-prix').value : 0;
+            const tva = row.querySelector('.l-tva').value;
+            const prixVal = row.querySelector('.l-prix').value;
             const prix = prixVal ? parseFloat(prixVal).toFixed(2) + ' €' : '';
             rows.push([desc, tva, prix, ""]); 
         }
@@ -269,7 +259,7 @@ window.genererPDFFacture = function() {
     pdf.text("Total (TTC)", 142, finalY + 8);
     pdf.text(document.getElementById('total-ttc').textContent, 188, finalY + 8, {align:'right'});
 
-    // --- PIED DE PAGE ---
+    // --- FOOTER ---
     finalY += 25;
     pdf.setFontSize(8); pdf.setTextColor(255, 0, 0); 
     pdf.text("NB :", 15, finalY);
@@ -277,5 +267,5 @@ window.genererPDFFacture = function() {
     pdf.text("- (NA) TVA non applicable (0%), art 293 B du CGI", 25, finalY);
     pdf.text("- Conditions de paiement : 100% soit " + document.getElementById('total-ttc').textContent + " à payer à réception", 25, finalY + 5);
 
-    pdf.save(`${docType}_${numero}.pdf`);
+    pdf.save(`${type}_${numero}.pdf`);
 };
