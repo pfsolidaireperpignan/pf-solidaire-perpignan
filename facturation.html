@@ -11,14 +11,12 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     <style>
-        /* DESIGN FACTURATION */
         .invoice-wrapper { max-width: 1200px; margin: 20px auto; padding: 20px; background: white; min-height: 100vh; }
         .top-bar { border-top: 5px solid #eab308; margin-bottom: 30px; } 
         .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; }
-        
         .client-box { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 15px; }
         
-        /* TABLEAU SAISIE */
+        /* TABLEAU */
         .invoice-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
         .invoice-table th { 
             background: #dcfce7; border: 1px solid #166534; padding: 10px; 
@@ -30,24 +28,20 @@
         }
         .invoice-table input:focus, .invoice-table select:focus { background: #f0f9ff; }
         
-        /* Styles Lignes */
         tr.section-row td { background: #ffedd5 !important; border-color: #fdba74; }
         tr.section-row input { font-weight: bold; color: #9a3412; text-transform: uppercase; }
 
-        /* DRAG & DROP STYLES */
+        /* DRAG & DROP */
         .drag-handle { cursor: grab; color: #94a3b8; font-size: 1.2rem; padding: 0 10px; }
         .drag-handle:active { cursor: grabbing; color:var(--accent); }
-        .draggable-source { opacity: 0.4; background: #e2e8f0; } /* Style quand on soulève */
-        .drag-over { border-top: 2px solid var(--accent); } /* Ligne bleue quand on survole */
+        .draggable-source { opacity: 0.4; background: #e2e8f0; } 
 
         .total-container { display: flex; justify-content: flex-end; margin-top: 20px; }
         .total-box { border: 2px solid #166534; padding: 10px 20px; font-size: 1.3rem; font-weight: bold; color: #166534; background: #f0fdf4; }
         
         .fast-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px; }
 
-        /* TABLEAU HISTORIQUE */
         .history-section { margin-top: 60px; border-top: 4px solid #e2e8f0; padding-top: 30px; }
-        .history-controls { margin-bottom: 15px; display:flex; gap:10px; }
         .history-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         .history-table th { background: #1e293b; color: white; padding: 10px; text-align: left; }
         .history-table td { padding: 10px; border-bottom: 1px solid #eee; }
@@ -88,9 +82,17 @@
 
         <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #eee; padding-bottom:15px;">
             <div style="flex:1; margin-right:20px;">
-                <label style="font-size:0.8rem; font-weight:bold; color:#666;">OBJET :</label>
-                <input id="facture_sujet" placeholder="EXHUMATION..." style="font-size:1.1rem; font-weight:bold; width:100%; border:none; border-bottom:1px solid #ccc; text-transform:uppercase;">
+                <label style="font-size:0.8rem; font-weight:bold; color:#666;">OBJET (Sélectionnez pour charger le modèle) :</label>
+                <select id="facture_sujet_select" onchange="window.changerModele(this.value)" style="width:100%; font-size:1.1rem; font-weight:bold; padding:8px; border:1px solid var(--accent); color:var(--primary-dark); border-radius:4px; cursor:pointer;">
+                    <option value="" disabled selected>-- CHOISIR LE TYPE D'OBSÈQUES --</option>
+                    <option value="INHUMATION">INHUMATION (Classique)</option>
+                    <option value="CREMATION">CRÉMATION</option>
+                    <option value="RAPATRIEMENT">RAPATRIEMENT</option>
+                    <option value="AUTRE">Autre (Vide)</option>
+                </select>
+                <input id="facture_sujet" type="hidden">
             </div>
+            
             <div style="text-align:right;">
                 <select id="doc_type" style="font-weight:bold; color:#166534; border:1px solid #166534; padding:5px; font-size:1rem; border-radius:4px;">
                     <option value="DEVIS">DEVIS</option>
@@ -115,14 +117,15 @@
         <table class="invoice-table">
             <thead>
                 <tr>
-                    <th style="width:5%"></th> <th style="width:35%">DÉSIGNATION</th>
+                    <th style="width:5%"></th>
+                    <th style="width:35%">DÉSIGNATION</th>
                     <th style="width:12%">TYPE</th>
                     <th style="width:10%">TVA</th>
                     <th style="width:15%">PRIX TTC</th>
-                    <th style="width:5%"></th> </tr>
+                    <th style="width:5%"></th>
+                </tr>
             </thead>
-            <tbody id="lines-body">
-                </tbody>
+            <tbody id="lines-body"></tbody>
         </table>
 
         <div class="total-container">
@@ -151,7 +154,6 @@
                     <input id="history-search" placeholder="Rechercher (N°, Nom...)" style="padding:8px; border:1px solid #ccc; border-radius:4px; width:250px;" onkeyup="window.filtrerHistorique()">
                 </div>
             </div>
-            
             <table class="history-table">
                 <thead><tr><th>Date</th><th>Type & N°</th><th>Client</th><th>Objet</th><th>Total</th><th>Actions</th></tr></thead>
                 <tbody id="history-body">
