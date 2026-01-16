@@ -1,8 +1,8 @@
 /* ==========================================================================
-   MODULE FACTURATION - VERSION AJUSTÉE (PRIX & TVA NA)
+   MODULE FACTURATION - LOGIQUE PRO (NON-ECRASEMENT & NUMEROTATION)
    ========================================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy, where, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // --- VOTRE CONFIGURATION FIREBASE ---
 const firebaseConfig = {
@@ -19,9 +19,9 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let clientsCache = [];
-let historyCache = [];
 let currentClientId = null;
-let currentInvoiceId = null;
+let currentInvoiceId = null; 
+let originalDocType = null; // Pour savoir si on a changé le type en cours de route
 
 function getVal(id) { const el = document.getElementById(id); return el ? el.value : ""; }
 
@@ -50,20 +50,17 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     window.chargerHistorique();
-    
-    // On attend que l'utilisateur choisisse un objet pour remplir le tableau
 });
 
-// --- CHANGEMENT DE MODÈLE (LOGIQUE MÉTIER) ---
+// --- CHANGEMENT DE MODÈLE (CONTENU) ---
 window.changerModele = function(type) {
     const tbody = document.getElementById('lines-body');
-    tbody.innerHTML = ''; // On vide tout pour reconstruire
-    
+    tbody.innerHTML = ''; 
     document.getElementById('facture_sujet').value = type;
 
     // SECTION 1
     window.ajouterTitreSection("1 - PRÉPARATION / ORGANISATION DES OBSÈQUES");
-    window.ajouterLigne("Chambre funéraire (Séjour)", "NA", 300, "courant"); // Remplacé Honoraires
+    window.ajouterLigne("Chambre funéraire (Séjour)", "NA", 300, "courant");
     window.ajouterLigne("Démarches administratives (Mairie, Préfecture...)", "NA", 250, "courant");
     window.ajouterLigne("Toilette mortuaire : Préparation et habillage", "NA", 150, "courant");
     window.ajouterLigne("Soins de conservation (Thanatopraxie)", "NA", 250, "option");
@@ -77,8 +74,7 @@ window.changerModele = function(type) {
     window.ajouterLigne("Cercueil (Modèle à définir : Pin / Chêne)", "NA", 850, "courant");
     window.ajouterLigne("Plaque d'identité (Obligatoire)", "NA", 30, "courant");
     window.ajouterLigne("Capiton (Taffetas / Satin)", "NA", 80, "courant");
-    window.ajouterLigne("4 Poignées (Obligatoires)", "NA", 0, "courant"); // Souvent inclus
-    window.ajouterLigne("Cuvette étanche (Obligatoire)", "NA", 0, "courant"); // Souvent inclus
+    window.ajouterLigne("4 Poignées + Cuvette (Obligatoire)", "NA", 0, "courant");
 
     // SECTION 4
     window.ajouterTitreSection("4 - MISE EN BIÈRE ET FERMETURE");
@@ -90,7 +86,6 @@ window.changerModele = function(type) {
     window.ajouterLigne("Mise à disposition de porteurs", "NA", 0, "option"); 
     window.ajouterLigne("Registre de condoléances", "NA", 30, "option");
 
-    // BLOCS SPÉCIFIQUES SELON LE CHOIX
     if (type === "INHUMATION") {
         window.ajouterTitreSection("6 - INHUMATION / EXHUMATION");
         window.ajouterLigne("Ouverture / Fermeture de sépulture", "NA", 685, "courant");
@@ -109,7 +104,6 @@ window.changerModele = function(type) {
         window.ajouterLigne("Ambulance (Aéroport vers lieu d'inhumation)", "NA", 200, "courant");
         window.ajouterLigne("Démarches Consulaires / Douanières", "NA", 150, "courant");
     }
-    
     window.recalculer();
 };
 
@@ -180,7 +174,6 @@ window.ajouterLigne = function(desc = "", tva = "NA", prix = 0, typePrest = "cou
             <i class="fas fa-trash" style="color:red; cursor:pointer;" onclick="this.closest('tr').remove(); window.recalculer();"></i>
         </td>
     `;
-    
     attachDragEvents(tr);
     tbody.appendChild(tr);
     window.recalculer();
@@ -202,7 +195,6 @@ window.ajouterTitreSection = function(titre = "NOUVELLE SECTION") {
     tbody.appendChild(tr);
 };
 
-// CALCUL SIMPLE (PAS DE TVA CALCULÉE)
 window.recalculer = function() {
     let total = 0;
     document.querySelectorAll('tr[data-type="line"]').forEach(row => {
@@ -216,36 +208,62 @@ window.recalculer = function() {
     if(totalEl) totalEl.textContent = total.toFixed(2) + ' €';
 };
 
-// --- SAUVEGARDE & NUMEROTATION ---
-async function getNextInvoiceNumber() {
+/* ==========================================================================
+   SAUVEGARDE & NUMEROTATION LOGIQUE
+   ========================================================================== */
+
+// Fonction pour générer D-2026-001 ou F-2026-001
+async function getNextNumber(docType) {
+    // docType = "DEVIS" ou "FACTURE"
+    const prefix = docType === "DEVIS" ? "D" : "F";
+    const currentYear = new Date().getFullYear();
+    
     try {
-        const q = query(collection(db, "factures"), orderBy("created_at", "desc"), limit(1));
+        // On cherche le dernier doc de CE type
+        const q = query(collection(db, "factures"), where("type", "==", docType), orderBy("created_at", "desc"), limit(1));
         const snaps = await getDocs(q);
-        let lastNum = 0;
+        
+        let nextSeq = 1;
+        
         if (!snaps.empty) {
             const lastDoc = snaps.docs[0].data();
-            if (lastDoc.numero && lastDoc.numero.includes('-')) {
-                const parts = lastDoc.numero.split('-');
-                if(parts.length > 1) lastNum = parseInt(parts[1]);
+            const lastNum = lastDoc.numero; 
+            // Format attendu : X-2026-005
+            if (lastNum && lastNum.includes('-')) {
+                const parts = lastNum.split('-'); // ["F", "2026", "005"]
+                if (parts.length === 3 && parseInt(parts[1]) === currentYear) {
+                    nextSeq = parseInt(parts[2]) + 1;
+                }
             }
         }
-        const year = new Date().getFullYear();
-        const next = lastNum + 1;
-        return `${year}-${next.toString().padStart(3, '0')}`;
-    } catch (e) { return "2026-001"; }
+        
+        // Formatage sur 3 chiffres (ex: 005)
+        const seqStr = nextSeq.toString().padStart(3, '0');
+        return `${prefix}-${currentYear}-${seqStr}`;
+        
+    } catch (e) {
+        console.error("Erreur numérotation", e);
+        return `${prefix}-${currentYear}-001`; // Secours
+    }
 }
 
 window.sauvegarderFactureBase = async function() {
     const btn = document.querySelector('.btn-green');
     if(btn) btn.innerHTML = 'Envoi...';
     
-    const nom = getVal('facture_nom');
-    if(!nom) { if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer'; return alert("Nom du client obligatoire"); }
+    // Vérification Défunt d'abord (car c'est le dossier clé)
+    const nomDefunt = getVal('facture_defunt');
+    if(!nomDefunt) { if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer'; return alert("Nom du Défunt obligatoire pour créer le dossier."); }
+
+    const selectedType = document.getElementById('doc_type').value; // DEVIS ou FACTURE
 
     try {
+        // 1. GESTION DU DOSSIER (PROSPECT)
         if (!currentClientId) {
             const newClient = {
-                nom: nom,
+                nom: nomDefunt.split(' ')[0] || "Défunt",
+                prenom: nomDefunt.split(' ').slice(1).join(' ') || "",
+                soussigne: getVal('facture_client'), // Le payeur
                 demeurant: getVal('facture_adresse'),
                 lastModified: new Date().toISOString(),
                 type_dossier: "PROSPECT"
@@ -254,21 +272,32 @@ window.sauvegarderFactureBase = async function() {
             currentClientId = docRef.id;
         }
 
+        // 2. DETECTION DU CAS "CONVERSION" (Devis -> Facture)
+        // Si on a chargé un document (ID existe) MAIS que le type a changé (Devis -> Facture)
+        // ALORS on considère que c'est une NOUVELLE création (on vide l'ID)
+        if (currentInvoiceId && originalDocType && originalDocType !== selectedType) {
+            currentInvoiceId = null; // On force la création d'un nouveau doc
+            console.log("Conversion détectée : Création d'un nouveau document.");
+        }
+
+        // 3. NUMEROTATION
         let numFinal = getVal('facture_numero');
-        if (!currentInvoiceId && (numFinal === 'AUTO' || numFinal === '(Auto)' || numFinal === '')) {
-            numFinal = await getNextInvoiceNumber();
+        // Si c'est un nouveau doc OU si le numéro est "AUTO"
+        if (!currentInvoiceId || numFinal === 'AUTO' || numFinal === '(Auto)') {
+            numFinal = await getNextNumber(selectedType);
             document.getElementById('facture_numero').value = numFinal;
         }
 
+        // 4. PREPARATION DONNEES
         const data = {
-            type: getVal('doc_type'),
+            type: selectedType,
             numero: numFinal,
             date: getVal('facture_date'),
             sujet: getVal('facture_sujet') || document.getElementById('facture_sujet_select').value, 
             client_id: currentClientId,
-            client_nom: nom,
+            client_nom: getVal('facture_client'), // Mandant
             client_adresse: getVal('facture_adresse'),
-            defunt_nom: getVal('facture_defunt'),
+            defunt_nom: nomDefunt,
             total: document.getElementById('total-ttc').textContent,
             lignes: [],
             created_at: new Date().toISOString()
@@ -283,14 +312,17 @@ window.sauvegarderFactureBase = async function() {
             data.lignes.push({ type, desc, prix, tva, typePrest });
         });
 
+        // 5. ENVOI
         if(currentInvoiceId) {
             await updateDoc(doc(db, "factures", currentInvoiceId), data);
-            alert("Document mis à jour !");
+            alert("Document mis à jour avec succès !");
         } else {
             await addDoc(collection(db, "factures"), data);
-            alert("Document créé avec le N° " + numFinal);
+            alert(`Nouveau document créé : ${numFinal}`);
         }
+        
         window.chargerHistorique();
+        
     } catch (e) { console.error(e); alert("Erreur: " + e.message); }
     if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer';
 };
@@ -320,11 +352,17 @@ window.renderHistorique = function(items) {
 
     items.forEach(d => {
         const dateF = new Date(d.created_at).toLocaleDateString();
+        // Couleur différente selon Devis ou Facture
+        const colorTag = d.type === "FACTURE" ? "background:#dcfce7; color:#166534;" : "background:#e0f2fe; color:#0369a1;";
+        
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${dateF}</td>
-            <td><span class="status-tag">${d.type}</span> <strong>${d.numero}</strong></td>
-            <td>${d.client_nom}</td>
+            <td><span class="status-tag" style="${colorTag}">${d.type}</span> <strong>${d.numero}</strong></td>
+            <td>
+                <div><small>Défunt:</small> <b>${d.defunt_nom}</b></div>
+                <div style="font-size:0.8em; color:#666;">Client: ${d.client_nom}</div>
+            </td>
             <td>${d.sujet || '-'}</td>
             <td style="font-weight:bold;">${d.total}</td>
             <td style="display:flex; gap:5px;">
@@ -349,6 +387,7 @@ window.filtrerHistorique = function() {
     const term = document.getElementById('history-search').value.toLowerCase();
     const filtered = historyCache.filter(item => 
         (item.client_nom && item.client_nom.toLowerCase().includes(term)) ||
+        (item.defunt_nom && item.defunt_nom.toLowerCase().includes(term)) ||
         (item.numero && item.numero.toLowerCase().includes(term))
     );
     window.renderHistorique(filtered);
@@ -363,11 +402,12 @@ window.chargerFacturePourModif = async function(id) {
         const d = snap.data();
         currentInvoiceId = id;
         currentClientId = d.client_id;
+        originalDocType = d.type; // On mémorise le type d'origine (DEVIS ou FACTURE)
 
         document.getElementById('doc_type').value = d.type;
         document.getElementById('facture_numero').value = d.numero;
         document.getElementById('facture_date').value = d.date;
-        document.getElementById('facture_nom').value = d.client_nom;
+        document.getElementById('facture_client').value = d.client_nom;
         document.getElementById('facture_adresse').value = d.client_adresse || "";
         document.getElementById('facture_defunt').value = d.defunt_nom || "";
         document.getElementById('facture_sujet').value = d.sujet || "";
@@ -412,9 +452,9 @@ window.genererPDFFacture = function() {
 
     pdf.setFillColor(240, 240, 240); pdf.rect(120, 20, 75, 40, 'F');
     pdf.setFont("helvetica", "bold"); pdf.setTextColor(0);
-    pdf.text("Famille", 125, 28);
+    pdf.text("Famille / Client", 125, 28);
     pdf.setFont("helvetica", "normal");
-    pdf.text(getVal('facture_nom'), 125, 35);
+    pdf.text(getVal('facture_client'), 125, 35);
     const adresse = pdf.splitTextToSize(getVal('facture_adresse'), 70);
     pdf.text(adresse, 125, 42);
 
@@ -430,6 +470,14 @@ window.genererPDFFacture = function() {
     let dateFr = getVal('facture_date');
     if(dateFr.includes('-')) dateFr = dateFr.split('-').reverse().join('-');
     pdf.text(`${type} N° ${numero} du ${dateFr}`, 105, y, {align:"center"});
+    
+    // Afficher le défunt
+    y += 8;
+    const defunt = getVal('facture_defunt');
+    if(defunt) {
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(10); pdf.setTextColor(0);
+        pdf.text(`Obsèques de : ${defunt}`, 105, y, {align:"center"});
+    }
     y += 10;
 
     const rows = [];
@@ -453,7 +501,7 @@ window.genererPDFFacture = function() {
     });
 
     pdf.autoTable({
-        startY: 100,
+        startY: 110,
         head: [['', 'TVA', 'PRIX TTC PRESTATIONS\nCOURANTES', 'PRIX TTC PRESTATIONS\nCOMPLEMENTAIRES\nOPTIONNELLES']],
         body: rows,
         theme: 'grid',
