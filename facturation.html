@@ -24,7 +24,7 @@
             background: #dcfce7; border: 1px solid #166534; padding: 10px; 
             text-align: center; color: #14532d; font-weight: bold; vertical-align: middle;
         }
-        .invoice-table td { border: 1px solid #e5e7eb; padding: 2px; vertical-align: middle; }
+        .invoice-table td { border: 1px solid #e5e7eb; padding: 2px; vertical-align: middle; background: white; }
         .invoice-table input, .invoice-table select { 
             width: 100%; padding: 8px; border: none; outline: none; background: transparent; font-family: inherit; font-size: inherit; 
         }
@@ -34,6 +34,12 @@
         tr.section-row td { background: #ffedd5 !important; border-color: #fdba74; }
         tr.section-row input { font-weight: bold; color: #9a3412; text-transform: uppercase; }
 
+        /* DRAG & DROP STYLES */
+        .drag-handle { cursor: grab; color: #94a3b8; font-size: 1.2rem; padding: 0 10px; }
+        .drag-handle:active { cursor: grabbing; color:var(--accent); }
+        .draggable-source { opacity: 0.4; background: #e2e8f0; } /* Style quand on soulève */
+        .drag-over { border-top: 2px solid var(--accent); } /* Ligne bleue quand on survole */
+
         .total-container { display: flex; justify-content: flex-end; margin-top: 20px; }
         .total-box { border: 2px solid #166534; padding: 10px 20px; font-size: 1.3rem; font-weight: bold; color: #166534; background: #f0fdf4; }
         
@@ -41,16 +47,11 @@
 
         /* TABLEAU HISTORIQUE */
         .history-section { margin-top: 60px; border-top: 4px solid #e2e8f0; padding-top: 30px; }
-        .history-controls { margin-bottom: 15px; display:flex; gap:10px; }
         .history-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         .history-table th { background: #1e293b; color: white; padding: 10px; text-align: left; }
         .history-table td { padding: 10px; border-bottom: 1px solid #eee; }
         .history-table tr:hover { background: #f8fafc; }
         .status-tag { padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: bold; background: #e0f2fe; color: #0369a1; }
-
-        /* Boutons de déplacement */
-        .move-btn { cursor: pointer; color: #64748b; font-size: 0.9rem; padding: 2px 5px; }
-        .move-btn:hover { color: var(--accent); }
     </style>
 </head>
 <body>
@@ -113,10 +114,11 @@
         <table class="invoice-table">
             <thead>
                 <tr>
-                    <th style="width:35%">DÉSIGNATION</th>
-                    <th style="width:12%">TYPE</th> <th style="width:10%">TVA</th>
+                    <th style="width:5%"></th> <th style="width:35%">DÉSIGNATION</th>
+                    <th style="width:12%">TYPE</th>
+                    <th style="width:10%">TVA</th>
                     <th style="width:15%">PRIX TTC</th>
-                    <th style="width:10%">ACTIONS</th> </tr>
+                    <th style="width:5%"></th> </tr>
             </thead>
             <tbody id="lines-body">
                 </tbody>
@@ -145,13 +147,12 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 style="color:#1e293b; margin:0;"><i class="fas fa-history"></i> Historique des documents</h3>
                 <div style="display:flex; gap:10px;">
-                    <input id="history-search" placeholder="Rechercher (N°, Nom...)" style="padding:8px; border:1px solid #ccc; border-radius:4px; width:250px;">
-                    <button class="btn btn-outline" onclick="window.filtrerHistorique()"><i class="fas fa-search"></i></button>
+                    <input id="history-search" placeholder="Rechercher (N°, Nom...)" style="padding:8px; border:1px solid #ccc; border-radius:4px; width:250px;" onkeyup="window.filtrerHistorique()">
                 </div>
             </div>
             
             <table class="history-table">
-                <thead><tr><th>Date</th><th>Type & N°</th><th>Client</th><th>Objet</th><th>Total</th><th>Action</th></tr></thead>
+                <thead><tr><th>Date</th><th>Type & N°</th><th>Client</th><th>Objet</th><th>Total</th><th>Actions</th></tr></thead>
                 <tbody id="history-body">
                     <tr><td colspan="6" style="text-align:center; color:#999;">Chargement...</td></tr>
                 </tbody>
