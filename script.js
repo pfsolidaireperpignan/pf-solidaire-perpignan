@@ -127,7 +127,6 @@ window.rechercherDossier = async function() {
                         <button class="btn-outline" style="padding:5px 10px;" onclick="window.chargerDossier('${doc.id}')">
                             <i class="fas fa-folder-open"></i> Ouvrir
                         </button>
-                        
                         <button class="btn-purple" style="padding:5px 10px; margin-left:5px; border:none; border-radius:4px; color:white; cursor:pointer;" 
                                 onclick="window.location.href='facturation.html?id=${doc.id}'">
                             <i class="fas fa-euro-sign"></i> Facturer
@@ -359,7 +358,7 @@ window.genererPouvoir = function() {
     pdf.setFont("helvetica", "bold"); pdf.setTextColor(185, 28, 28);
     pdf.text(`POUR : ${typePresta}`, 105, y, {align:"center"}); y+=15;
     pdf.setTextColor(0); pdf.setFont("helvetica", "bold");
-    pdf.text("Donne mandat exclusif aux PF SOLIDAIRE PERPIGNAN pour :", x, y); y+=8;
+    pdf.text("Donne mandat aux PF SOLIDAIRE PERPIGNAN pour :", x, y); y+=8;
     pdf.setFont("helvetica", "normal");
     pdf.text("- Effectuer toutes les démarches administratives.", x+5, y); y+=6;
     pdf.text("- Signer toute demande d'autorisation nécessaire.", x+5, y); y+=6;

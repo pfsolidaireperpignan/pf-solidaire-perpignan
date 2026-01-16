@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MODULE FACTURATION - DRAG & DROP + SUPPRESSION
+   MODULE FACTURATION - COMPLET
    ========================================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -23,10 +23,9 @@ let historyCache = [];
 let currentClientId = null;
 let currentInvoiceId = null;
 
-// --- SECURITE ---
 function getVal(id) { const el = document.getElementById(id); return el ? el.value : ""; }
 
-// --- INIT ---
+// --- INITIALISATION ---
 window.addEventListener('DOMContentLoaded', async () => {
     const dateInput = document.getElementById('facture_date');
     if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
@@ -54,38 +53,61 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Charger Historique
     window.chargerHistorique();
 
-    // Lignes défaut
-    window.ajouterTitreSection("1. PRESTATIONS");
-    window.ajouterLigne("Cercueil", "NA", 0);
+    // ============================================================
+    // CHARGEMENT DU MODÈLE TYPE
+    // ============================================================
+    
+    window.ajouterTitreSection("1 - PRÉPARATION / ORGANISATION DES OBSÈQUES");
+    window.ajouterLigne("Honoraires d'organisation et démarches administratives", "20", 0, "courant");
+    window.ajouterLigne("Toilette mortuaire : Préparation et habillage du défunt", "20", 0, "courant");
+    window.ajouterLigne("Soins de conservation (Thanatopraxie)", "20", 0, "option");
+    
+    window.ajouterTitreSection("2 - TRANSPORT AVANT MISE EN BIÈRE");
+    window.ajouterLigne("Véhicule agréé avec chauffeur (Forfait < 50km)", "10", 0, "courant");
+    
+    window.ajouterTitreSection("3 - CERCUEIL ET ACCESSOIRES");
+    window.ajouterLigne("Cercueil (Modèle à définir : Pin / Chêne)", "20", 0, "courant");
+    window.ajouterLigne("Plaque d'identité (Obligatoire)", "20", 30, "courant");
+    window.ajouterLigne("Capiton (Taffetas / Satin)", "20", 0, "courant");
+    window.ajouterLigne("4 Poignées (Obligatoires)", "20", 0, "courant");
+    window.ajouterLigne("Cuvette étanche (Obligatoire)", "20", 0, "courant");
+    
+    window.ajouterTitreSection("4 - MISE EN BIÈRE ET FERMETURE");
+    window.ajouterLigne("Personnel pour mise en bière et fermeture", "20", 0, "courant");
+    
+    window.ajouterTitreSection("5 - CÉRÉMONIE FUNÉRAIRE");
+    window.ajouterLigne("Corbillard pour cérémonie avec chauffeur", "10", 0, "courant");
+    window.ajouterLigne("Mise à disposition de porteurs", "20", 0, "courant");
+    window.ajouterLigne("Registre de condoléances", "20", 0, "option");
+    
+    window.ajouterTitreSection("6 - INHUMATION / TRAVAUX");
+    window.ajouterLigne("Ouverture / Fermeture de sépulture (Inhumation)", "20", 0, "courant");
+    window.ajouterLigne("Creusement de fosse (Pleine terre)", "20", 0, "option");
+    
+    window.ajouterTitreSection("7 - CRÉMATION (Si applicable)");
+    window.ajouterLigne("Urne cinéraire", "20", 0, "option");
+    window.ajouterLigne("Redevance Crématorium", "0", 0, "courant");
 });
 
-// --- DRAG AND DROP (LOGIQUE) ---
+// --- DRAG AND DROP ---
 function initDragAndDrop() {
     const tbody = document.getElementById('lines-body');
-    
     tbody.addEventListener('dragover', (e) => {
         e.preventDefault();
         const afterElement = getDragAfterElement(tbody, e.clientY);
         const draggable = document.querySelector('.dragging');
-        if (afterElement == null) {
-            tbody.appendChild(draggable);
-        } else {
-            tbody.insertBefore(draggable, afterElement);
-        }
+        if (afterElement == null) { tbody.appendChild(draggable); } 
+        else { tbody.insertBefore(draggable, afterElement); }
     });
 }
 
 function getDragAfterElement(container, y) {
     const draggableElements = [...container.querySelectorAll('tr:not(.dragging)')];
-
     return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
         const offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) {
-            return { offset: offset, element: child };
-        } else {
-            return closest;
-        }
+        if (offset < 0 && offset > closest.offset) { return { offset: offset, element: child }; } 
+        else { return closest; }
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
@@ -95,7 +117,7 @@ function attachDragEvents(row) {
     row.addEventListener('dragend', () => { row.classList.remove('dragging'); });
 }
 
-// --- AUTO-COMPLETE CLIENT ---
+// --- CLIENT ---
 window.checkClientAuto = function() {
     const val = getVal('facture_nom');
     const found = clientsCache.find(c => c.name === val);
@@ -110,10 +132,7 @@ window.checkClientAuto = function() {
     }
 };
 
-/* ==========================================================================
-   GESTION TABLEAU
-   ========================================================================== */
-
+// --- TABLEAU ---
 window.ajouterLigne = function(desc = "", tva = "NA", prix = 0, typePrest = "courant") {
     const tbody = document.getElementById('lines-body');
     const tr = document.createElement('tr');
@@ -138,7 +157,7 @@ window.ajouterLigne = function(desc = "", tva = "NA", prix = 0, typePrest = "cou
         </td>
     `;
     
-    attachDragEvents(tr); // Activer le drag
+    attachDragEvents(tr);
     tbody.appendChild(tr);
     window.recalculer();
 };
@@ -155,7 +174,7 @@ window.ajouterTitreSection = function(titre = "NOUVELLE SECTION") {
             <i class="fas fa-trash" style="color:red; cursor:pointer;" onclick="this.closest('tr').remove(); window.recalculer();"></i>
         </td>
     `;
-    attachDragEvents(tr); // Activer le drag
+    attachDragEvents(tr);
     tbody.appendChild(tr);
 };
 
@@ -172,10 +191,7 @@ window.recalculer = function() {
     if(totalEl) totalEl.textContent = total.toFixed(2) + ' €';
 };
 
-/* ==========================================================================
-   SAUVEGARDE
-   ========================================================================== */
-
+// --- SAUVEGARDE & NUMEROTATION ---
 async function getNextInvoiceNumber() {
     try {
         const q = query(collection(db, "factures"), orderBy("created_at", "desc"), limit(1));
@@ -260,9 +276,7 @@ window.sauvegarderFactureBase = async function() {
     if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer';
 };
 
-/* ==========================================================================
-   HISTORIQUE & SUPPRESSION
-   ========================================================================== */
+// --- HISTORIQUE & SUPPRESSION ---
 
 window.chargerHistorique = async function() {
     const tbody = document.getElementById('history-body');
@@ -314,15 +328,11 @@ window.renderHistorique = function(items) {
 };
 
 window.supprimerFacture = async function(id) {
-    if(confirm("Êtes-vous sûr de vouloir supprimer définitivement ce document ?")) {
+    if(confirm("Supprimer définitivement ce document ?")) {
         try {
             await deleteDoc(doc(db, "factures", id));
-            alert("Document supprimé.");
-            window.chargerHistorique(); // Rafraichissement immédiat
-        } catch(e) {
-            console.error(e);
-            alert("Erreur lors de la suppression.");
-        }
+            window.chargerHistorique();
+        } catch(e) { console.error(e); }
     }
 };
 
