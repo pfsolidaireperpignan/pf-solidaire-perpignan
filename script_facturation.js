@@ -1,7 +1,10 @@
+/* ==========================================================================
+   MODULE FACTURATION - "FAST TRACK"
+   ========================================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, doc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// --- CONFIG FIREBASE ---
+// --- VOTRE CONFIGURATION FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyDmsIkTjW2IFkIks5BUAnxLLnc7pnj2e0w",
     authDomain: "pf-solidaire.firebaseapp.com",
@@ -15,131 +18,104 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let clientsCache = [];
+// Stockage temporaire des clients pour la recherche rapide
+let clientsCache = []; 
 let currentClientId = null;
-let currentInvoiceId = null; // ID de la FACTURE en cours (pour modification)
 
-// --- SECURITE ---
-function getVal(id) { const el = document.getElementById(id); return el ? el.value : ""; }
+/* ==========================================================================
+   INIT & RECHERCHE RAPIDE
+   ========================================================================== */
 
-// --- INIT ---
 window.addEventListener('DOMContentLoaded', async () => {
+    // 1. Initialiser la date
     const dateInput = document.getElementById('facture_date');
     if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-    // Charger Clients
+    // 2. Ajouter des lignes par défaut
+    window.ajouterTitreSection("1. PRESTATIONS COURANTES");
+    window.ajouterLigne("Cercueil", "NA", 0);
+
+    // 3. Charger les clients en mémoire pour la recherche instantanée
     const datalist = document.getElementById('clients-datalist');
     if(datalist) {
         try {
             const q = query(collection(db, "dossiers_clients"), orderBy("lastModified", "desc"));
-            const snaps = await getDocs(q);
-            snaps.forEach((doc) => {
-                const d = doc.data();
-                const nom = `${d.nom || ''} ${d.prenom || ''}`;
-                clientsCache.push({ id: doc.id, name: nom, address: d.demeurant || "", defunt: `${d.nom} ${d.prenom}` });
-                const opt = document.createElement('option');
-                opt.value = nom;
-                datalist.appendChild(opt);
+            const querySnapshot = await getDocs(q);
+            
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                const nomComplet = `${data.nom || ''} ${data.prenom || ''}`;
+                const adresse = data.demeurant || data.adresse_fr || "";
+                
+                clientsCache.push({ id: doc.id, name: nomComplet, address: adresse, defunt: `${data.nom} ${data.prenom}` });
+                
+                const option = document.createElement('option');
+                option.value = nomComplet; 
+                datalist.appendChild(option);
             });
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Erreur chargement clients:", e); }
     }
 
-    // Charger Historique Factures
-    window.chargerHistorique();
-
-    // Lignes défaut
-    window.ajouterTitreSection("1. PRESTATIONS");
-    window.ajouterLigne("Cercueil", "NA", 0);
+    // 4. CHECK URL - SI UN ID EST PRESENT, CHARGER LE CLIENT AUTOMATIQUEMENT
+    const urlParams = new URLSearchParams(window.location.search);
+    const idFromUrl = urlParams.get('id');
+    if(idFromUrl) {
+        window.chargerClientById(idFromUrl);
+    }
 });
 
-// --- HISTORIQUE & MODIFICATION ---
-window.chargerHistorique = async function() {
-    const tbody = document.getElementById('history-body');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-
+// NOUVELLE FONCTION POUR CHARGER DEPUIS L'ID (ADMIN -> FACTURATION)
+window.chargerClientById = async function(id) {
     try {
-        // Prendre les 20 derniers devis/factures
-        const q = query(collection(db, "factures"), orderBy("created_at", "desc"), limit(20));
-        const snaps = await getDocs(q);
+        const docRef = doc(db, "dossiers_clients", id);
+        const docSnap = await getDoc(docRef);
         
-        snaps.forEach(docSnap => {
-            const d = docSnap.data();
-            const dateF = new Date(d.created_at).toLocaleDateString();
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${dateF}</td>
-                <td><span class="status-tag">${d.type}</span> ${d.numero}</td>
-                <td>${d.client_nom}</td>
-                <td style="font-weight:bold;">${d.total}</td>
-                <td>
-                    <button onclick="window.chargerFacturePourModif('${docSnap.id}')" style="cursor:pointer; background:none; border:1px solid #ccc; padding:2px 8px; border-radius:4px;">
-                        <i class="fas fa-pen"></i> Modifier
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-        if(tbody.innerHTML === '') tbody.innerHTML = '<tr><td colspan="5">Aucun document.</td></tr>';
-    } catch (e) { console.error(e); }
-};
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            currentClientId = id;
+            
+            // Remplir les champs
+            const nomComplet = data.soussigne || `${data.nom || ''} ${data.prenom || ''}`;
+            const adresse = data.demeurant || data.adresse_fr || "";
+            const defunt = `${data.nom || ''} ${data.prenom || ''}`;
 
-window.chargerFacturePourModif = async function(id) {
-    try {
-        const docRef = doc(db, "factures", id);
-        const snap = await getDoc(docRef);
-        if(!snap.exists()) return alert("Document introuvable");
+            document.getElementById('facture_nom').value = nomComplet;
+            document.getElementById('facture_adresse').value = adresse;
+            document.getElementById('facture_defunt').value = defunt;
+            
+            // Petit effet visuel
+            document.getElementById('facture_nom').style.backgroundColor = "#dcfce7";
+        }
+    } catch (e) { console.error("Erreur chargement client par ID:", e); }
+}
 
-        const d = snap.data();
-        currentInvoiceId = id; // IMPORTANT : On est en mode édition
-        currentClientId = d.client_id;
-
-        // Remplir champs
-        document.getElementById('doc_type').value = d.type;
-        document.getElementById('facture_numero').value = d.numero;
-        document.getElementById('facture_date').value = d.date;
-        document.getElementById('facture_nom').value = d.client_nom;
-        document.getElementById('facture_adresse').value = d.client_adresse || ""; // J'ai ajouté ce champ
-        document.getElementById('facture_defunt').value = d.defunt_nom || "";
-        document.getElementById('facture_sujet').value = d.sujet || "";
-
-        // Remplir tableau
-        const tbody = document.getElementById('lines-body');
-        tbody.innerHTML = ''; // Vider
-        d.lignes.forEach(l => {
-            if(l.type === 'section') window.ajouterTitreSection(l.desc);
-            else window.ajouterLigne(l.desc, l.tva, l.prix);
-        });
-
-        window.recalculer();
-        window.scrollTo(0,0);
-        alert(`Document ${d.numero} chargé pour modification.`);
-
-    } catch (e) { console.error(e); alert("Erreur chargement"); }
-};
-
-// --- CLIENT ---
+// AUTO-COMPLETION (Quand on tape manuellement)
 window.checkClientAuto = function() {
-    const val = getVal('facture_nom');
+    const val = document.getElementById('facture_nom').value;
+    // Chercher si le nom tapé correspond exactement à un client connu
     const found = clientsCache.find(c => c.name === val);
+    
     if (found) {
         document.getElementById('facture_adresse').value = found.address;
         document.getElementById('facture_defunt').value = found.defunt;
         currentClientId = found.id;
-        document.getElementById('facture_nom').style.backgroundColor = "#dcfce7";
+        document.getElementById('facture_nom').style.backgroundColor = "#dcfce7"; 
     } else {
         currentClientId = null;
         document.getElementById('facture_nom').style.backgroundColor = "white";
     }
 };
 
-// --- TABLEAU ---
+/* ==========================================================================
+   LIGNES & CALCULS
+   ========================================================================== */
+
 window.ajouterLigne = function(desc = "", tva = "NA", prix = 0) {
     const tbody = document.getElementById('lines-body');
     const tr = document.createElement('tr');
     tr.dataset.type = "line";
     tr.innerHTML = `
-        <td style="padding-left:10px;"><input class="l-desc" value="${desc}" placeholder="..."></td>
+        <td style="padding-left:10px;"><input class="l-desc" value="${desc}" placeholder="Désignation"></td>
         <td style="text-align:center;"><input class="l-tva" value="${tva}" style="text-align:center; width:50px;"></td>
         <td style="text-align:right;"><input type="number" class="l-prix" value="${prix}" step="0.01" style="text-align:right;" onchange="window.recalculer()"></td>
         <td></td>
@@ -164,42 +140,53 @@ window.ajouterTitreSection = function(titre = "NOUVELLE SECTION") {
 window.recalculer = function() {
     let total = 0;
     document.querySelectorAll('tr[data-type="line"]').forEach(row => {
-        const prix = parseFloat(row.querySelector('.l-prix').value) || 0;
-        total += prix;
+        const prixInput = row.querySelector('.l-prix');
+        if(prixInput) {
+            const prix = parseFloat(prixInput.value) || 0;
+            total += prix;
+        }
     });
-    document.getElementById('total-ttc').textContent = total.toFixed(2) + ' €';
+    const totalEl = document.getElementById('total-ttc');
+    if(totalEl) totalEl.textContent = total.toFixed(2) + ' €';
 };
 
-// --- SAUVEGARDE (ADD ou UPDATE) ---
+/* ==========================================================================
+   SAUVEGARDE & PDF
+   ========================================================================== */
+
 window.sauvegarderFactureBase = async function() {
     const btn = document.querySelector('.btn-green');
-    if(btn) btn.innerHTML = '...';
+    if(btn) btn.innerHTML = 'Envoi...';
     
-    const nom = getVal('facture_nom');
-    if(!nom) { if(btn) btn.innerHTML = 'Enregistrer'; return alert("Nom obligatoire"); }
+    const nom = document.getElementById('facture_nom').value;
+    if(!nom) { 
+        if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer'; 
+        return alert("Nom du client obligatoire"); 
+    }
 
     try {
-        // Prospect auto
+        // Si nouveau prospect, on le crée
         if (!currentClientId) {
             const newClient = {
-                nom: nom,
-                demeurant: getVal('facture_adresse'),
+                nom: nom.split(' ')[0] || nom,
+                prenom: nom.split(' ').slice(1).join(' ') || "",
+                soussigne: nom,
+                demeurant: document.getElementById('facture_adresse').value,
                 lastModified: new Date().toISOString(),
-                type_dossier: "PROSPECT"
+                type_dossier: "PROSPECT",
+                notes: "Depuis Facturation"
             };
             const docRef = await addDoc(collection(db, "dossiers_clients"), newClient);
             currentClientId = docRef.id;
         }
 
-        const data = {
-            type: getVal('doc_type'),
-            numero: getVal('facture_numero'),
-            date: getVal('facture_date'),
-            sujet: getVal('facture_sujet'),
+        const factureData = {
+            type: document.getElementById('doc_type') ? document.getElementById('doc_type').value : "DEVIS",
+            numero: document.getElementById('facture_numero').value,
+            date: document.getElementById('facture_date').value,
+            sujet: document.getElementById('facture_sujet').value,
             client_id: currentClientId,
             client_nom: nom,
-            client_adresse: getVal('facture_adresse'), // Sauvegarde adresse
-            defunt_nom: getVal('facture_defunt'),
             total: document.getElementById('total-ttc').textContent,
             lignes: [],
             created_at: new Date().toISOString()
@@ -208,38 +195,30 @@ window.sauvegarderFactureBase = async function() {
         document.querySelectorAll('#lines-body tr').forEach(row => {
             const type = row.dataset.type;
             const desc = row.querySelector('.l-desc') ? row.querySelector('.l-desc').value : "";
-            const prix = (type === 'line') ? row.querySelector('.l-prix').value : "";
-            const tva = (type === 'line') ? row.querySelector('.l-tva').value : "";
-            data.lignes.push({ type, desc, prix, tva });
+            const prix = (type === 'line' && row.querySelector('.l-prix')) ? row.querySelector('.l-prix').value : "";
+            const tva = (type === 'line' && row.querySelector('.l-tva')) ? row.querySelector('.l-tva').value : "";
+            factureData.lignes.push({ type, desc, prix, tva });
         });
 
-        if(currentInvoiceId) {
-            // MISE A JOUR
-            await updateDoc(doc(db, "factures", currentInvoiceId), data);
-            alert("Document modifié avec succès !");
-        } else {
-            // CREATION
-            await addDoc(collection(db, "factures"), data);
-            alert("Nouveau document créé !");
-        }
+        await addDoc(collection(db, "factures"), factureData);
+        alert("Enregistré !");
         
-        window.chargerHistorique(); // Rafraichir la liste en bas
-        
-    } catch (e) { console.error(e); alert("Erreur: " + e.message); }
+    } catch (e) { alert("Erreur: " + e.message); }
+    
     if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer';
 };
 
-// --- PDF ---
 window.genererPDFFacture = function() {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF();
-    
-    const type = getVal('doc_type');
-    const numero = getVal('facture_numero');
+    const type = document.getElementById('doc_type') ? document.getElementById('doc_type').value : "DEVIS";
+    const numero = document.getElementById('facture_numero').value || "PROVISOIRE";
 
+    // Logo
     const imgElement = document.getElementById('logo-source');
     if (imgElement && imgElement.naturalWidth > 0) pdf.addImage(imgElement, 'PNG', 15, 15, 35, 35);
-    
+
+    // Emetteur
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(22, 101, 52); 
     pdf.text("POMPES FUNEBRES", 15, 55);
     pdf.text("SOLIDAIRE PERPIGNAN", 15, 60);
@@ -250,17 +229,18 @@ window.genererPDFFacture = function() {
     pdf.text("SIRET : 539 270 298 00042", 15, 74);
     pdf.text("Tél : +33 7 55 18 27 77", 15, 78);
 
-    pdf.setFillColor(240, 240, 240); 
-    pdf.rect(120, 20, 75, 40, 'F');
+    // Destinataire
+    pdf.setFillColor(240, 240, 240); pdf.rect(120, 20, 75, 40, 'F');
     pdf.setFont("helvetica", "bold"); pdf.setTextColor(0);
     pdf.text("Famille", 125, 28);
     pdf.setFont("helvetica", "normal");
-    pdf.text(getVal('facture_nom'), 125, 35);
-    const adresse = pdf.splitTextToSize(getVal('facture_adresse'), 70);
-    pdf.text(adresse, 125, 42);
+    pdf.text(document.getElementById('facture_nom').value, 125, 35);
+    const adr = pdf.splitTextToSize(document.getElementById('facture_adresse').value, 70);
+    pdf.text(adr, 125, 42);
 
+    // Titre
     let y = 90;
-    const sujet = getVal('facture_sujet').toUpperCase();
+    const sujet = document.getElementById('facture_sujet').value.toUpperCase();
     if(sujet) {
         pdf.setFont("helvetica", "bold"); pdf.setFontSize(11);
         pdf.text(sujet, 15, y);
@@ -268,19 +248,20 @@ window.genererPDFFacture = function() {
     }
     
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(22, 101, 52);
-    let dateFr = getVal('facture_date');
+    let dateFr = document.getElementById('facture_date').value;
     if(dateFr.includes('-')) dateFr = dateFr.split('-').reverse().join('-');
     pdf.text(`${type} N° ${numero} du ${dateFr}`, 105, y, {align:"center"});
     y += 10;
 
+    // Tableau
     const rows = [];
     document.querySelectorAll('#lines-body tr').forEach(row => {
-        const desc = row.querySelector('.l-desc') ? row.querySelector('.l-desc').value : "";
+        const desc = row.querySelector('.l-desc').value;
         if (row.dataset.type === 'section') {
             rows.push([{ content: desc, colSpan: 4, styles: {fillColor: [255, 237, 213], textColor: [0,0,0], fontStyle: 'bold'} }]);
         } else {
-            const tva = row.querySelector('.l-tva') ? row.querySelector('.l-tva').value : "";
-            const prixVal = row.querySelector('.l-prix') ? row.querySelector('.l-prix').value : 0;
+            const tva = row.querySelector('.l-tva').value;
+            const prixVal = row.querySelector('.l-prix').value;
             const prix = prixVal ? parseFloat(prixVal).toFixed(2) + ' €' : '';
             rows.push([desc, tva, prix, ""]); 
         }
@@ -295,6 +276,7 @@ window.genererPDFFacture = function() {
         columnStyles: { 0: { cellWidth: 100 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 40, halign: 'right' }, 3: { cellWidth: 35 } }
     });
 
+    // Totaux
     let finalY = pdf.lastAutoTable.finalY + 10;
     pdf.setDrawColor(22, 101, 52); pdf.setLineWidth(0.5);
     pdf.rect(140, finalY, 50, 12);
@@ -302,6 +284,7 @@ window.genererPDFFacture = function() {
     pdf.text("Total (TTC)", 142, finalY + 8);
     pdf.text(document.getElementById('total-ttc').textContent, 188, finalY + 8, {align:'right'});
 
+    // Footer
     finalY += 25;
     pdf.setFontSize(8); pdf.setTextColor(255, 0, 0); 
     pdf.text("NB :", 15, finalY);
