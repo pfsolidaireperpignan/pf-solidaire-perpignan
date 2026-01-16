@@ -186,7 +186,6 @@ window.openTab = function(tabName) {
         target.classList.remove("hidden");
         target.classList.add("active", "fade-in");
     }
-    // Activation bouton
     let index = 0;
     if(tabName === 'tab-documents') index = 1;
     if(tabName === 'tab-technique') index = 2;
@@ -351,7 +350,7 @@ window.genererPouvoir = function() {
     pdf.setFont("helvetica", "bold"); pdf.setTextColor(185, 28, 28);
     pdf.text(`POUR : ${typePresta}`, 105, y, {align:"center"}); y+=15;
     pdf.setTextColor(0); pdf.setFont("helvetica", "bold");
-    pdf.text("Donne mandat exclusif aux PF SOLIDAIRE PERPIGNAN pour :", x, y); y+=8;
+    pdf.text("Donne mandat aux PF SOLIDAIRE PERPIGNAN pour :", x, y); y+=8;
     pdf.setFont("helvetica", "normal");
     pdf.text("- Effectuer toutes les démarches administratives.", x+5, y); y+=6;
     pdf.text("- Signer toute demande d'autorisation nécessaire.", x+5, y); y+=6;
@@ -482,6 +481,7 @@ window.genererDemandeRapatriement = function() {
 
     // --- TITRE GÉNÉRALISÉ CENTRÉ ---
     pdf.setDrawColor(0); pdf.setLineWidth(0.5); pdf.setFillColor(240, 240, 240);
+    // Cadre centré (largeur page 210, cadre 180, marge gauche 15)
     pdf.rect(15, 20, 180, 20, 'FD');
 
     pdf.setTextColor(0); pdf.setFont("helvetica", "bold"); pdf.setFontSize(14);

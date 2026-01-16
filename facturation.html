@@ -3,123 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Devis & Facturation - PF Solidaire</title>
+    <title>Devis Rapide - PF Solidaire</title>
     <link rel="stylesheet" href="style.css">
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     <style>
-        .invoice-wrapper { max-width: 1000px; margin: 30px auto; padding: 20px; background: white; min-height: 100vh; }
-        .top-bar { border-top: 5px solid #eab308; margin-bottom: 30px; }
-        .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-        .company-details { font-size: 0.95rem; color: #166534; }
-        .company-details strong { font-size: 1.2rem; display: block; margin-bottom: 5px; }
-        .client-box { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .client-box h4 { margin: 0 0 10px 0; border-bottom: 1px solid #d1d5db; padding-bottom: 5px; }
+        .invoice-wrapper { max-width: 1100px; margin: 20px auto; padding: 0 20px; }
+        .invoice-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .fast-input { border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: 1rem; width: 100%; transition: border 0.3s; }
+        .fast-input:focus { border-color: var(--accent); outline: none; }
+        .invoice-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .invoice-table th { background: #dcfce7; text-align: left; padding: 10px; color: #166534; font-size: 0.85rem; text-transform: uppercase; border-bottom: 2px solid #166534; }
+        .invoice-table td { padding: 5px; border-bottom: 1px solid #f1f5f9; }
+        .invoice-table input, .invoice-table select { border: none; background: transparent; width: 100%; padding: 8px; font-size: 0.95rem; }
+        .invoice-table input:focus { background: #f0f9ff; border-radius: 4px; }
+        .totals-section { display: flex; justify-content: flex-end; margin-top: 20px; }
+        .totals-table td { padding: 5px 15px; text-align: right; }
+        .grand-total { font-size: 1.4rem; font-weight: 800; color: var(--accent); border-top: 2px solid #cbd5e1; padding-top: 10px !important; }
+        .doc-type-selector { display: flex; background: #f1f5f9; padding: 4px; border-radius: 8px; }
+        .doc-type-selector label { padding: 8px 16px; cursor: pointer; border-radius: 6px; font-weight: 600; color: #64748b; transition: 0.2s; }
+        .doc-type-selector input { display: none; }
+        .doc-type-selector input:checked + span { background: white; color: var(--accent); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .doc-type-selector span { display: block; padding: 5px 10px; border-radius: 6px; }
         
-        .invoice-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
-        .invoice-table th { background: #dcfce7; border: 1px solid #86efac; padding: 8px; text-align: center; color: #14532d; font-weight: bold; }
-        .invoice-table td { border: 1px solid #e5e7eb; padding: 0; }
-        .invoice-table input { width: 100%; padding: 8px; border: none; outline: none; font-family: inherit; font-size: inherit; background: transparent; }
-        
-        tr.section-row td { background: #ffedd5; border-color: #fdba74; }
-        tr.section-row input { font-weight: bold; color: #9a3412; text-transform: uppercase; }
-
-        .total-container { display: flex; justify-content: flex-end; margin-top: 20px; }
-        .total-box { border: 2px solid #166534; padding: 10px 20px; font-size: 1.3rem; font-weight: bold; color: #166534; background: #f0fdf4; }
-        .fast-input { width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px; }
+        /* Style sections orange */
+        tr.section-row td { background: #ffedd5; }
+        tr.section-row input { color: #9a3412; font-weight: bold; }
     </style>
 </head>
 <body>
     <img id="logo-source" src="Logo.png" style="display: none;" crossorigin="anonymous">
 
     <div class="invoice-wrapper">
-        <div class="top-bar"></div>
-
-        <div style="margin-bottom: 20px;">
-            <a href="index.html" class="btn btn-outline" style="display:inline-flex; text-decoration:none; border:none;">
-                <i class="fas fa-arrow-left"></i> Retour au Hub
-            </a>
-        </div>
-
-        <div class="header-grid">
-            <div class="company-details">
-                <img src="Logo.png" style="height: 90px; margin-bottom: 15px;">
-                <strong>POMPES FUNEBRES<br>SOLIDAIRE PERPIGNAN</strong>
-                <p style="color:#333; font-size:0.9rem; line-height:1.4;">
-                    32 boulevard Léon Jean Grégory Thuir - FRANCE<br>
-                    pfsolidaireperpignan@gmail.com<br>
-                    N° TVA Intracommunautaire : FR92539270298<br>
-                    N° SIRET : 539 270 298 00042<br>
-                    Tél : +33 7 55 18 27 77
-                </p>
+        
+        <div class="invoice-header">
+            <a href="index.html" class="btn btn-outline" style="border:none; padding:0;"><i class="fas fa-arrow-left"></i> Retour</a>
+            <div class="doc-type-selector">
+                <label><input type="radio" name="doc_type" value="DEVIS" checked><span>DEVIS</span></label>
+                <label><input type="radio" name="doc_type" value="FACTURE"><span>FACTURE</span></label>
             </div>
-            <div class="client-box">
-                <h4>Famille / Client</h4>
-                <input id="facture_nom" list="clients-datalist" class="fast-input" placeholder="Nom du client (Recherche auto)..." onchange="window.checkClientAuto()">
-                <datalist id="clients-datalist"></datalist>
-                <input id="facture_adresse" class="fast-input" placeholder="Adresse complète...">
-                <input id="facture_defunt" class="fast-input" placeholder="Concerne le défunt..." style="margin-top:10px; font-style:italic;">
+            <div style="font-weight:bold; color:var(--primary);">
+                <i class="fas fa-calendar-alt"></i> <input type="date" id="facture_date" style="border:none; background:transparent; font-weight:bold; color:var(--primary);">
             </div>
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:10px; border-bottom:2px solid #eee; padding-bottom:10px;">
+        <div class="grid-form" style="gap: 15px; margin-bottom: 20px; background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); border:1px solid #e2e8f0;">
+            <div class="span-2">
+                <label style="font-size:0.8rem; color:#64748b; font-weight:bold; text-transform:uppercase;">Client (Famille)</label>
+                <div style="position:relative;">
+                    <input id="facture_nom" list="clients-datalist" class="fast-input" placeholder="Commencez à taper un nom..." onchange="window.checkClientAuto()" autocomplete="off">
+                    <datalist id="clients-datalist"></datalist>
+                    <i class="fas fa-search" style="position:absolute; right:15px; top:12px; color:#cbd5e1;"></i>
+                </div>
+            </div>
             <div>
-                <input id="facture_sujet" placeholder="SUJET (ex: EXHUMATION ET RAPATRIEMENT)" style="font-size:1.1rem; font-weight:bold; width:400px; border:none; text-transform:uppercase;">
+                <label style="font-size:0.8rem; color:#64748b; font-weight:bold;">Adresse</label>
+                <input id="facture_adresse" class="fast-input" placeholder="Adresse (Facultatif pour devis)">
             </div>
-            <div style="text-align:right;">
-                <select id="doc_type" style="font-weight:bold; color:#166534; border:none; font-size:1.1rem;">
-                    <option value="DEVIS">DEVIS</option>
-                    <option value="FACTURE">FACTURE</option>
-                </select>
-                <span style="font-weight:bold;">N°</span>
-                <input id="facture_numero" value="AUTO" style="width:100px; font-weight:bold; border:none;">
-                <br>
-                <span>du </span><input type="date" id="facture_date" style="border:none;">
+            <div>
+                <label style="font-size:0.8rem; color:#64748b; font-weight:bold;">Concerne le défunt</label>
+                <input id="facture_defunt" class="fast-input" placeholder="Nom du défunt (Facultatif)">
+            </div>
+            <div class="span-2" style="display:flex; gap:10px; align-items:center;">
+                <label style="font-size:0.8rem; color:#64748b; font-weight:bold;">Objet / Sujet :</label>
+                <input id="facture_sujet" placeholder="ex: EXHUMATION ET RAPATRIEMENT" style="border:none; border-bottom:1px solid #ccc; font-weight:bold; width:100%; text-transform:uppercase;">
+                <label style="font-size:0.8rem; color:#64748b; font-weight:bold; margin-left:20px;">N° Pièce :</label>
+                <input id="facture_numero" value="AUTO" style="border:none; font-weight:bold; color:var(--accent); width:80px;">
             </div>
         </div>
 
-        <div class="controls" style="display:flex; gap:10px; margin-bottom:5px;">
-            <button onclick="window.ajouterTitreSection()" class="btn btn-outline" style="padding:5px 10px; background:#ffedd5; color:#9a3412; font-size:0.8rem;">
-                <i class="fas fa-heading"></i> Ajouter Titre Section
+        <div class="card">
+            <div class="card-body" style="padding:0;">
+                
+                <div class="controls" style="padding:10px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; gap:10px;">
+                    <button onclick="window.ajouterTitreSection()" class="btn btn-outline" style="padding:5px 10px; background:#ffedd5; color:#9a3412; font-size:0.8rem;">
+                        <i class="fas fa-heading"></i> Ajouter Titre Section
+                    </button>
+                    <button onclick="window.ajouterLigne()" class="btn btn-outline" style="padding:5px 10px; font-size:0.8rem;">
+                        <i class="fas fa-plus"></i> Ajouter Ligne
+                    </button>
+                </div>
+
+                <table class="invoice-table">
+                    <thead>
+                        <tr>
+                            <th style="width:45%; padding-left:20px;">Désignation</th>
+                            <th style="width:10%; text-align:center;">TVA</th>
+                            <th style="width:20%; text-align:right;">PRIX TTC<br><small>Courant</small></th>
+                            <th style="width:20%; text-align:right; padding-right:20px;">PRIX TTC<br><small>Optionnel</small></th>
+                            <th style="width:30px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="lines-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="totals-section">
+            <table class="totals-table">
+                <tr><td class="grand-total">NET À PAYER :</td><td class="grand-total" id="total-ttc">0.00 €</td></tr>
+            </table>
+        </div>
+
+        <div class="actions-bar center" style="margin-top:40px; gap:20px;">
+            <button onclick="window.genererPDFFacture()" class="btn btn-blue big-btn" style="height:50px; font-size:1.1rem;">
+                <i class="fas fa-print"></i> IMPRIMER PDF
             </button>
-            <button onclick="window.ajouterLigne()" class="btn btn-outline" style="padding:5px 10px; font-size:0.8rem;">
-                <i class="fas fa-plus"></i> Ajouter Ligne
+            <button onclick="window.sauvegarderFactureBase()" class="btn btn-green" style="height:50px;">
+                <i class="fas fa-save"></i> Enregistrer
             </button>
-        </div>
-
-        <table class="invoice-table">
-            <thead>
-                <tr>
-                    <th style="width:45%">DÉSIGNATION</th>
-                    <th style="width:10%">TVA</th>
-                    <th style="width:20%">PRIX TTC<br>PRESTATIONS COURANTES</th>
-                    <th style="width:20%">PRIX TTC<br>OPTIONNELLES</th>
-                    <th style="width:5%"></th>
-                </tr>
-            </thead>
-            <tbody id="lines-body"></tbody>
-        </table>
-
-        <div class="total-container">
-            <div class="total-box">
-                Total (TTC) <span id="total-ttc" style="margin-left:20px;">0.00 €</span>
-            </div>
-        </div>
-
-        <div style="margin-top:40px; color:#ef4444; font-size:0.85rem;">
-            <strong>NB :</strong>
-            <ul style="list-style:none; padding:0; margin-top:5px; color:#333;">
-                <li>- (NA) TVA non applicable (0%), art 293 B du CGI</li>
-                <li>- Conditions de paiement : 100% à payer à réception</li>
-            </ul>
-        </div>
-
-        <div class="actions-bar center" style="margin-top:50px;">
-            <button onclick="window.sauvegarderFactureBase()" class="btn btn-green"><i class="fas fa-save"></i> Enregistrer (Base)</button>
-            <button onclick="window.genererPDFFacture()" class="btn btn-blue big-btn"><i class="fas fa-print"></i> IMPRIMER PDF</button>
         </div>
 
     </div>
