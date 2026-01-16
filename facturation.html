@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Devis & Facturation - PF Solidaire</title>
+    <title>Devis & Facturation</title>
     <link rel="stylesheet" href="style.css">
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -16,12 +15,8 @@
         .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; }
         .client-box { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 15px; }
         
-        /* CHAMPS RECHERCHE */
-        .search-group { margin-bottom: 15px; border-bottom: 1px solid #d1d5db; padding-bottom: 15px; }
-        .search-label { font-size: 0.8rem; font-weight: bold; color:var(--accent); text-transform: uppercase; display:block; margin-bottom:5px; }
-        
         .invoice-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
-        .invoice-table th { background: #dcfce7; border: 1px solid #166534; padding: 10px; text-align: center; color: #14532d; font-weight: bold; vertical-align: middle; }
+        .invoice-table th { background: #dcfce7; border: 1px solid #166534; padding: 10px; text-align: center; color: #14532d; font-weight: bold; }
         .invoice-table td { border: 1px solid #e5e7eb; padding: 2px; vertical-align: middle; background: white; }
         .invoice-table input, .invoice-table select { width: 100%; padding: 8px; border: none; outline: none; background: transparent; }
         .invoice-table input:focus { background: #f0f9ff; }
@@ -29,18 +24,20 @@
         tr.section-row td { background: #ffedd5 !important; border-color: #fdba74; }
         tr.section-row input { font-weight: bold; color: #9a3412; text-transform: uppercase; }
 
+        /* DRAG & DROP */
         .drag-handle { cursor: grab; color: #94a3b8; font-size: 1.2rem; padding: 0 10px; }
+        .drag-handle:active { cursor: grabbing; color:var(--accent); }
+        .dragging { opacity: 0.5; background: #e2e8f0; }
+
         .total-container { display: flex; justify-content: flex-end; margin-top: 20px; }
         .total-box { border: 2px solid #166534; padding: 10px 20px; font-size: 1.3rem; font-weight: bold; color: #166534; background: #f0fdf4; }
-        
-        .fast-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px; background: white; }
-        .readonly-input { background-color: #e5e7eb; color: #555; cursor: not-allowed; }
+        .fast-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px; }
 
         .history-section { margin-top: 60px; border-top: 4px solid #e2e8f0; padding-top: 30px; }
         .history-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         .history-table th { background: #1e293b; color: white; padding: 10px; text-align: left; }
         .history-table td { padding: 10px; border-bottom: 1px solid #eee; }
-        .status-tag { padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: bold; background: #e0f2fe; color: #0369a1; }
+        .status-tag { padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -53,8 +50,8 @@
             <a href="index.html" class="btn btn-outline" style="text-decoration:none; border:none;">
                 <i class="fas fa-arrow-left"></i> Retour au Hub
             </a>
-            <button onclick="window.annulerModifications()" class="btn btn-outline">
-                <i class="fas fa-plus"></i> Nouveau Devis Vierge
+            <button onclick="window.annulerModifications()" class="btn btn-outline" style="color:#64748b;">
+                <i class="fas fa-undo"></i> Nouveau / Vider
             </button>
         </div>
 
@@ -66,8 +63,8 @@
             </div>
 
             <div class="client-box">
-                <div class="search-group">
-                    <label class="search-label"><i class="fas fa-search"></i> Rechercher Dossier (Par Défunt)</label>
+                <div style="margin-bottom:15px; border-bottom:1px solid #ccc; padding-bottom:10px;">
+                    <label style="font-size:0.8rem; font-weight:bold; color:var(--accent);">RECHERCHER DÉFUNT :</label>
                     <input id="search_dossier" list="dossiers-datalist" class="fast-input" 
                            placeholder="Tapez le nom du défunt..." 
                            onchange="window.selectionnerDossier()" 
@@ -75,24 +72,24 @@
                     <datalist id="dossiers-datalist"></datalist>
                 </div>
 
-                <h4 style="margin:0 0 5px 0; color:#666;">Facturation (Payeur / Mandant) :</h4>
-                <input id="facture_client" class="fast-input" placeholder="Nom du Mandant (Payeur)...">
-                <input id="facture_adresse" class="fast-input" placeholder="Adresse du Mandant...">
+                <h4 style="margin:0 0 5px 0; color:#666;">Facturé à (Mandant) :</h4>
+                <input id="facture_client" class="fast-input" placeholder="Nom du Mandant...">
+                <input id="facture_adresse" class="fast-input" placeholder="Adresse...">
                 
-                <h4 style="margin:10px 0 5px 0; color:#666;">Concerne le défunt :</h4>
+                <h4 style="margin:10px 0 5px 0; color:#666;">Concerne les obsèques de :</h4>
                 <input id="facture_defunt" class="fast-input" placeholder="Nom du Défunt...">
             </div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #eee; padding-bottom:15px;">
             <div style="flex:1; margin-right:20px;">
-                <label style="font-size:0.8rem; font-weight:bold; color:#666;">OBJET DU DEVIS :</label>
-                <select id="facture_sujet_select" onchange="window.changerModele(this.value)" style="width:100%; font-size:1.1rem; font-weight:bold; padding:8px; border:1px solid var(--accent); color:var(--primary-dark); border-radius:4px; cursor:pointer;">
-                    <option value="" disabled selected>-- CHOISIR LE TYPE D'OBSÈQUES --</option>
-                    <option value="INHUMATION">INHUMATION (Classique)</option>
+                <label style="font-size:0.8rem; font-weight:bold; color:#666;">MODÈLE :</label>
+                <select id="facture_sujet_select" onchange="window.changerModele(this.value)" style="width:100%; font-size:1.1rem; font-weight:bold; padding:8px; border:1px solid var(--accent); border-radius:4px; cursor:pointer;">
+                    <option value="" disabled selected>-- CHOISIR LE TYPE --</option>
+                    <option value="INHUMATION">INHUMATION</option>
                     <option value="CREMATION">CRÉMATION</option>
                     <option value="RAPATRIEMENT">RAPATRIEMENT</option>
-                    <option value="AUTRE">Autre (Vide)</option>
+                    <option value="AUTRE">VIDE</option>
                 </select>
                 <input id="facture_sujet" type="hidden">
             </div>
@@ -111,7 +108,7 @@
 
         <div style="margin-top:15px; display:flex; gap:10px;">
             <button onclick="window.ajouterTitreSection()" class="btn" style="background:#ffedd5; color:#c2410c; border:1px solid #fdba74; font-weight:bold;">
-                <i class="fas fa-heading"></i> Ajouter Titre Section
+                <i class="fas fa-heading"></i> Titre Section
             </button>
             <button onclick="window.ajouterLigne()" class="btn btn-outline">
                 <i class="fas fa-plus"></i> Ajouter Ligne
@@ -147,17 +144,13 @@
         </div>
 
         <div class="actions-bar center" style="margin-top:50px; gap:20px;">
-            <button onclick="window.annulerModifications()" class="btn btn-outline" style="border-color:#94a3b8; color:#475569;">
-                <i class="fas fa-undo"></i> Annuler / Nouveau
-            </button>
-            
             <button onclick="window.sauvegarderFactureBase()" class="btn btn-green"><i class="fas fa-save"></i> Enregistrer & Numéroter</button>
             <button onclick="window.genererPDFFacture()" class="btn btn-blue big-btn"><i class="fas fa-print"></i> IMPRIMER PDF</button>
         </div>
 
         <div class="history-section">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                <h3 style="color:#1e293b; margin:0;"><i class="fas fa-history"></i> Historique des documents</h3>
+                <h3 style="color:#1e293b; margin:0;"><i class="fas fa-history"></i> Historique</h3>
                 <div style="display:flex; gap:10px;">
                     <input id="history-search" placeholder="Rechercher..." style="padding:8px; border:1px solid #ccc; border-radius:4px; width:250px;" onkeyup="window.filtrerHistorique()">
                 </div>
