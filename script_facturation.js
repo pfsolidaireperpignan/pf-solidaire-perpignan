@@ -1,10 +1,10 @@
 /* ==========================================================================
-   MODULE FACTURATION - COMPLET
+   MODULE FACTURATION - AVEC LOGIQUE METIER INHUMATION/CREMATION/RAPATRIEMENT
    ========================================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// --- VOTRE CONFIGURATION FIREBASE ---
+// --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyDmsIkTjW2IFkIks5BUAnxLLnc7pnj2e0w",
     authDomain: "pf-solidaire.firebaseapp.com",
@@ -25,12 +25,11 @@ let currentInvoiceId = null;
 
 function getVal(id) { const el = document.getElementById(id); return el ? el.value : ""; }
 
-// --- INITIALISATION ---
+// --- INIT ---
 window.addEventListener('DOMContentLoaded', async () => {
     const dateInput = document.getElementById('facture_date');
     if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-    // Drag & Drop Init
     initDragAndDrop();
 
     // Charger Clients
@@ -50,44 +49,66 @@ window.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { console.error(e); }
     }
 
-    // Charger Historique
     window.chargerHistorique();
+    
+    // Par défaut, on ne charge rien, on attend que l'utilisateur choisisse dans la liste
+});
 
-    // ============================================================
-    // CHARGEMENT DU MODÈLE TYPE
-    // ============================================================
+// --- LOGIQUE DE CHANGEMENT DE MODELE (C'est ici que ça se passe) ---
+window.changerModele = function(type) {
+    const tbody = document.getElementById('lines-body');
+    tbody.innerHTML = ''; // On vide tout
     
+    // On met à jour le champ caché sujet
+    document.getElementById('facture_sujet').value = type;
+
+    // SECTION 1 (COMMUNE)
     window.ajouterTitreSection("1 - PRÉPARATION / ORGANISATION DES OBSÈQUES");
-    window.ajouterLigne("Honoraires d'organisation et démarches administratives", "20", 0, "courant");
-    window.ajouterLigne("Toilette mortuaire : Préparation et habillage du défunt", "20", 0, "courant");
+    window.ajouterLigne("Honoraires d'organisation", "20", 0, "courant");
+    window.ajouterLigne("Démarches administratives (Mairie, Préfecture...)", "20", 0, "courant");
+    window.ajouterLigne("Toilette mortuaire : Préparation et habillage", "20", 0, "courant");
     window.ajouterLigne("Soins de conservation (Thanatopraxie)", "20", 0, "option");
-    
+
+    // SECTION 2 (COMMUNE)
     window.ajouterTitreSection("2 - TRANSPORT AVANT MISE EN BIÈRE");
     window.ajouterLigne("Véhicule agréé avec chauffeur (Forfait < 50km)", "10", 0, "courant");
-    
+
+    // SECTION 3 (COMMUNE)
     window.ajouterTitreSection("3 - CERCUEIL ET ACCESSOIRES");
-    window.ajouterLigne("Cercueil (Modèle à définir : Pin / Chêne)", "20", 0, "courant");
+    window.ajouterLigne("Cercueil (Modèle à définir)", "20", 0, "courant");
     window.ajouterLigne("Plaque d'identité (Obligatoire)", "20", 30, "courant");
-    window.ajouterLigne("Capiton (Taffetas / Satin)", "20", 0, "courant");
-    window.ajouterLigne("4 Poignées (Obligatoires)", "20", 0, "courant");
-    window.ajouterLigne("Cuvette étanche (Obligatoire)", "20", 0, "courant");
-    
+    window.ajouterLigne("Capiton", "20", 0, "courant");
+    window.ajouterLigne("4 Poignées + Cuvette étanche (Obligatoires)", "20", 0, "courant");
+
+    // SECTION 4 (COMMUNE)
     window.ajouterTitreSection("4 - MISE EN BIÈRE ET FERMETURE");
     window.ajouterLigne("Personnel pour mise en bière et fermeture", "20", 0, "courant");
-    
+
+    // SECTION 5 (COMMUNE)
     window.ajouterTitreSection("5 - CÉRÉMONIE FUNÉRAIRE");
     window.ajouterLigne("Corbillard pour cérémonie avec chauffeur", "10", 0, "courant");
     window.ajouterLigne("Mise à disposition de porteurs", "20", 0, "courant");
-    window.ajouterLigne("Registre de condoléances", "20", 0, "option");
+
+    // BLOCS SPECIFIQUES
+    if (type === "INHUMATION") {
+        window.ajouterTitreSection("6 - INHUMATION / EXHUMATION");
+        window.ajouterLigne("Ouverture / Fermeture de sépulture", "20", 0, "courant");
+        window.ajouterLigne("Creusement de fosse (Pleine terre)", "20", 0, "option");
+    } 
+    else if (type === "CREMATION") {
+        window.ajouterTitreSection("6 - CRÉMATION");
+        window.ajouterLigne("Urne cinéraire", "20", 0, "courant");
+        window.ajouterLigne("Redevance Crématorium", "0", 0, "courant");
+    }
+    else if (type === "RAPATRIEMENT") {
+        window.ajouterTitreSection("6 - RAPATRIEMENT");
+        window.ajouterLigne("Frais de fret aérien", "0", 0, "courant");
+        window.ajouterLigne("Ambulance (Aéroport vers lieu d'inhumation)", "0", 0, "courant");
+        window.ajouterLigne("Caisson zinc (Obligatoire pour l'avion)", "20", 0, "courant");
+    }
     
-    window.ajouterTitreSection("6 - INHUMATION / TRAVAUX");
-    window.ajouterLigne("Ouverture / Fermeture de sépulture (Inhumation)", "20", 0, "courant");
-    window.ajouterLigne("Creusement de fosse (Pleine terre)", "20", 0, "option");
-    
-    window.ajouterTitreSection("7 - CRÉMATION (Si applicable)");
-    window.ajouterLigne("Urne cinéraire", "20", 0, "option");
-    window.ajouterLigne("Redevance Crématorium", "0", 0, "courant");
-});
+    window.recalculer();
+};
 
 // --- DRAG AND DROP ---
 function initDragAndDrop() {
@@ -191,7 +212,7 @@ window.recalculer = function() {
     if(totalEl) totalEl.textContent = total.toFixed(2) + ' €';
 };
 
-// --- SAUVEGARDE & NUMEROTATION ---
+// --- SAUVEGARDE ---
 async function getNextInvoiceNumber() {
     try {
         const q = query(collection(db, "factures"), orderBy("created_at", "desc"), limit(1));
@@ -207,10 +228,7 @@ async function getNextInvoiceNumber() {
         const year = new Date().getFullYear();
         const next = lastNum + 1;
         return `${year}-${next.toString().padStart(3, '0')}`;
-    } catch (e) {
-        console.error("Erreur numérotation", e);
-        return "2026-001"; 
-    }
+    } catch (e) { return "2026-001"; }
 }
 
 window.sauvegarderFactureBase = async function() {
@@ -242,7 +260,7 @@ window.sauvegarderFactureBase = async function() {
             type: getVal('doc_type'),
             numero: numFinal,
             date: getVal('facture_date'),
-            sujet: getVal('facture_sujet'),
+            sujet: getVal('facture_sujet') || document.getElementById('facture_sujet_select').value, // Fallback si le select est utilisé
             client_id: currentClientId,
             client_nom: nom,
             client_adresse: getVal('facture_adresse'),
@@ -258,7 +276,6 @@ window.sauvegarderFactureBase = async function() {
             const prix = (type === 'line') ? row.querySelector('.l-prix').value : "";
             const tva = (type === 'line') ? row.querySelector('.l-tva').value : "";
             const typePrest = (type === 'line') ? row.querySelector('.l-type-prest').value : "";
-            
             data.lignes.push({ type, desc, prix, tva, typePrest });
         });
 
@@ -269,20 +286,16 @@ window.sauvegarderFactureBase = async function() {
             await addDoc(collection(db, "factures"), data);
             alert("Document créé avec le N° " + numFinal);
         }
-        
         window.chargerHistorique();
-        
     } catch (e) { console.error(e); alert("Erreur: " + e.message); }
     if(btn) btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer';
 };
 
-// --- HISTORIQUE & SUPPRESSION ---
-
+// --- HISTORIQUE ---
 window.chargerHistorique = async function() {
     const tbody = document.getElementById('history-body');
     if(!tbody) return;
     tbody.innerHTML = '<tr><td colspan="6">Chargement...</td></tr>';
-
     try {
         const q = query(collection(db, "factures"), orderBy("created_at", "desc"), limit(50));
         const snaps = await getDocs(q);
@@ -299,11 +312,7 @@ window.chargerHistorique = async function() {
 window.renderHistorique = function(items) {
     const tbody = document.getElementById('history-body');
     tbody.innerHTML = '';
-    
-    if(items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Aucun document trouvé.</td></tr>';
-        return;
-    }
+    if(items.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Aucun document.</td></tr>'; return; }
 
     items.forEach(d => {
         const dateF = new Date(d.created_at).toLocaleDateString();
@@ -315,12 +324,8 @@ window.renderHistorique = function(items) {
             <td>${d.sujet || '-'}</td>
             <td style="font-weight:bold;">${d.total}</td>
             <td style="display:flex; gap:5px;">
-                <button onclick="window.chargerFacturePourModif('${d.id}')" title="Modifier" style="cursor:pointer; border:1px solid #cbd5e1; background:white; padding:4px 8px; border-radius:4px; color:#334155;">
-                    <i class="fas fa-pen"></i>
-                </button>
-                <button onclick="window.supprimerFacture('${d.id}')" title="Supprimer" style="cursor:pointer; border:1px solid #fca5a5; background:#fef2f2; padding:4px 8px; border-radius:4px; color:#dc2626;">
-                    <i class="fas fa-trash"></i>
-                </button>
+                <button onclick="window.chargerFacturePourModif('${d.id}')" title="Modifier" style="cursor:pointer; border:1px solid #cbd5e1; background:white; padding:4px 8px; border-radius:4px;"><i class="fas fa-pen"></i></button>
+                <button onclick="window.supprimerFacture('${d.id}')" title="Supprimer" style="cursor:pointer; border:1px solid #fca5a5; background:#fef2f2; padding:4px 8px; border-radius:4px; color:#dc2626;"><i class="fas fa-trash"></i></button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -362,6 +367,13 @@ window.chargerFacturePourModif = async function(id) {
         document.getElementById('facture_adresse').value = d.client_adresse || "";
         document.getElementById('facture_defunt').value = d.defunt_nom || "";
         document.getElementById('facture_sujet').value = d.sujet || "";
+        
+        // Mettre à jour le select s'il correspond
+        if(d.sujet && ["INHUMATION", "CREMATION", "RAPATRIEMENT"].includes(d.sujet)) {
+            document.getElementById('facture_sujet_select').value = d.sujet;
+        } else {
+            document.getElementById('facture_sujet_select').value = "AUTRE";
+        }
 
         const tbody = document.getElementById('lines-body');
         tbody.innerHTML = '';
@@ -370,18 +382,13 @@ window.chargerFacturePourModif = async function(id) {
             if(l.type === 'section') window.ajouterTitreSection(l.desc);
             else window.ajouterLigne(l.desc, l.tva, l.prix, l.typePrest || "courant");
         });
-
         window.recalculer();
         window.scrollTo(0,0);
         alert(`Document ${d.numero} chargé.`);
-
     } catch (e) { console.error(e); }
 };
 
-/* ==========================================================================
-   GENERATION PDF (CENTRÉ & COLONNES)
-   ========================================================================== */
-
+// --- PDF ---
 window.genererPDFFacture = function() {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF();
@@ -389,24 +396,18 @@ window.genererPDFFacture = function() {
     const type = getVal('doc_type');
     const numero = getVal('facture_numero');
 
-    // LOGO
     const imgElement = document.getElementById('logo-source');
     if (imgElement && imgElement.naturalWidth > 0) pdf.addImage(imgElement, 'PNG', 15, 15, 35, 35);
     
-    // Header Société
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(22, 101, 52); 
     pdf.text("POMPES FUNEBRES", 15, 55);
     pdf.text("SOLIDAIRE PERPIGNAN", 15, 60);
-    
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(9); pdf.setTextColor(0);
     pdf.text("32 boulevard Léon Jean Grégory Thuir - FRANCE", 15, 66);
     pdf.text("pfsolidaireperpignan@gmail.com", 15, 70);
-    pdf.text("SIRET : 539 270 298 00042", 15, 74);
-    pdf.text("Tél : +33 7 55 18 27 77", 15, 78);
+    pdf.text("SIRET : 539 270 298 00042 - Tél : +33 7 55 18 27 77", 15, 74);
 
-    // Client
-    pdf.setFillColor(240, 240, 240); 
-    pdf.rect(120, 20, 75, 40, 'F');
+    pdf.setFillColor(240, 240, 240); pdf.rect(120, 20, 75, 40, 'F');
     pdf.setFont("helvetica", "bold"); pdf.setTextColor(0);
     pdf.text("Famille", 125, 28);
     pdf.setFont("helvetica", "normal");
@@ -414,10 +415,9 @@ window.genererPDFFacture = function() {
     const adresse = pdf.splitTextToSize(getVal('facture_adresse'), 70);
     pdf.text(adresse, 125, 42);
 
-    // Titre Centré
     let y = 90;
-    const sujet = getVal('facture_sujet').toUpperCase();
-    if(sujet) {
+    const sujet = getVal('facture_sujet').toUpperCase() || document.getElementById('facture_sujet_select').value;
+    if(sujet && sujet !== "AUTRE") {
         pdf.setFont("helvetica", "bold"); pdf.setFontSize(11);
         pdf.text(sujet, 15, y);
         y += 10;
@@ -429,21 +429,15 @@ window.genererPDFFacture = function() {
     pdf.text(`${type} N° ${numero} du ${dateFr}`, 105, y, {align:"center"});
     y += 10;
 
-    // PREPARATION TABLEAU
     const rows = [];
     document.querySelectorAll('#lines-body tr').forEach(row => {
         const desc = row.querySelector('.l-desc') ? row.querySelector('.l-desc').value : "";
         if (row.dataset.type === 'section') {
-            rows.push([{
-                content: desc, 
-                colSpan: 4, 
-                styles: {fillColor: [255, 237, 213], textColor: [0,0,0], fontStyle: 'bold'}
-            }]);
+            rows.push([{ content: desc, colSpan: 4, styles: {fillColor: [255, 237, 213], textColor: [0,0,0], fontStyle: 'bold'} }]);
         } else {
             const tva = row.querySelector('.l-tva') ? row.querySelector('.l-tva').value : "";
             const prixVal = row.querySelector('.l-prix') ? row.querySelector('.l-prix').value : 0;
             const prixFmt = parseFloat(prixVal).toFixed(2) + ' €';
-            
             const typePrest = row.querySelector('.l-type-prest') ? row.querySelector('.l-type-prest').value : "courant";
             
             let colCourant = "";
@@ -455,26 +449,16 @@ window.genererPDFFacture = function() {
         }
     });
 
-    // TABLEAU AUTO (CENTRAGE COLONNES)
     pdf.autoTable({
         startY: 100,
         head: [['', 'TVA', 'PRIX TTC PRESTATIONS\nCOURANTES', 'PRIX TTC PRESTATIONS\nCOMPLEMENTAIRES\nOPTIONNELLES']],
         body: rows,
         theme: 'grid',
-        headStyles: { 
-            fillColor: [220, 252, 231], textColor: [22, 101, 52], lineColor: [100, 100, 100], 
-            lineWidth: 0.1, halign: 'center', valign: 'middle'
-        },
+        headStyles: { fillColor: [220, 252, 231], textColor: [22, 101, 52], lineColor: [100, 100, 100], lineWidth: 0.1, halign: 'center', valign: 'middle' },
         styles: { fontSize: 9, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.1, valign: 'middle' },
-        columnStyles: { 
-            0: { cellWidth: 90 }, 
-            1: { cellWidth: 15, halign: 'center' },
-            2: { cellWidth: 40, halign: 'right' },
-            3: { cellWidth: 40, halign: 'right' }
-        }
+        columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 40, halign: 'right' }, 3: { cellWidth: 40, halign: 'right' } }
     });
 
-    // TOTAL
     let finalY = pdf.lastAutoTable.finalY + 10;
     pdf.setDrawColor(22, 101, 52); pdf.setLineWidth(0.5);
     pdf.rect(140, finalY, 50, 12);
