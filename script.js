@@ -51,7 +51,187 @@ onAuthStateChanged(auth, (user) => {
         if(document.getElementById('hub-accueil')) document.getElementById('hub-accueil').classList.remove('hidden');
     }
 });
+/* ==========================================================================
+   GESTION ADMINISTRATIVE (SCRIPT.JS)
+   ========================================================================== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+// --- CONFIG FIREBASE ---
+const firebaseConfig = {
+    apiKey: "AIzaSyDmsIkTjW2IFkIks5BUAnxLLnc7pnj2e0w",
+    authDomain: "pf-solidaire.firebaseapp.com",
+    projectId: "pf-solidaire",
+    storageBucket: "pf-solidaire.firebasestorage.app",
+    messagingSenderId: "485465343242",
+    appId: "1:485465343242:web:46d2a49f851a95907b26f3",
+    measurementId: "G-TWLLXKF0K4"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+let currentDocId = null;
+
+// --- AUTH ---
+window.loginFirebase = function() {
+    const email = document.getElementById('email-input').value;
+    const password = document.getElementById('password-input').value;
+    signInWithEmailAndPassword(auth, email, password)
+        .then(() => {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('hub-accueil').classList.remove('hidden');
+        })
+        .catch((e) => { alert("Erreur connexion: " + e.message); });
+};
+
+window.logout = function() { signOut(auth).then(() => window.location.reload()); };
+
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        document.getElementById('login-screen').style.display = 'none';
+        if(document.getElementById('hub-accueil')) document.getElementById('hub-accueil').classList.remove('hidden');
+        
+        // DETECTION RETOUR DEPUIS FACTURATION (Ouvrir dossier spécifique)
+        const urlParams = new URLSearchParams(window.location.search);
+        const openId = urlParams.get('open_id');
+        if(openId) {
+            // On force l'ouverture de l'app et du dossier
+            window.ouvrirApp('admin');
+            setTimeout(() => window.chargerDossier(openId), 500);
+        }
+    }
+});
+
+// --- NAVIGATION ---
+window.ouvrirApp = function(type) {
+    document.getElementById('hub-accueil').classList.add('hidden');
+    if (type === 'admin') {
+        document.getElementById('app-content').classList.remove('hidden');
+        window.openTab('tab-dossier');
+    } else if (type === 'devis') {
+        window.location.href = "facturation.html";
+    }
+};
+
+window.retourHub = function() {
+    document.getElementById('app-content').classList.add('hidden');
+    document.getElementById('hub-accueil').classList.remove('hidden');
+    // Nettoyer l'URL
+    window.history.pushState({}, document.title, window.location.pathname);
+};
+
+// --- CRUD ---
+window.sauvegarderClient = async function() {
+    const btn = document.querySelector('.btn-green');
+    btn.innerHTML = 'Envoi...';
+    try {
+        const data = {};
+        document.querySelectorAll('input, select').forEach(el => {
+            if(el.id) {
+                if(el.type === 'checkbox') data[el.id] = el.checked;
+                else if(el.type === 'radio') { if(el.checked) data[el.name] = el.value; }
+                else data[el.id] = el.value;
+            }
+        });
+        data.lastModified = new Date().toISOString();
+        if(!data.dateCreation) data.dateCreation = new Date().toISOString();
+
+        if (currentDocId) {
+            await updateDoc(doc(db, "dossiers_clients", currentDocId), data);
+            alert("Dossier mis à jour !");
+        } else {
+            const docRef = await addDoc(collection(db, "dossiers_clients"), data);
+            currentDocId = docRef.id;
+            alert("Dossier créé !");
+        }
+        document.getElementById('current-client-name').textContent = (data.nom || "") + " " + (data.prenom || "");
+    } catch (e) { alert("Erreur : " + e.message); }
+    btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer';
+};
+
+window.rechercherDossier = async function() {
+    const searchVal = document.getElementById('search-input').value.toLowerCase();
+    const tbody = document.getElementById('clients-list-body');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Chargement...</td></tr>';
+    try {
+        const q = query(collection(db, "dossiers_clients"), orderBy("lastModified", "desc"));
+        const querySnapshot = await getDocs(q);
+        tbody.innerHTML = '';
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            const fullName = `${data.nom || ''} ${data.prenom || ''}`.toLowerCase();
+            if (fullName.includes(searchVal)) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight:bold;">${data.nom || ''} ${data.prenom || ''}</td>
+                    <td>${data.date_deces || '-'}</td>
+                    <td>${data.prestation || '-'}</td>
+                    <td style="display:flex; gap:5px;">
+                        <button class="btn-outline" style="padding:5px 10px;" onclick="window.chargerDossier('${doc.id}')" title="Modifier Dossier"><i class="fas fa-folder-open"></i></button>
+                        <button class="btn-purple" style="padding:5px 10px; border:none; border-radius:4px; color:white; cursor:pointer;" onclick="window.location.href='facturation.html?id=${doc.id}'" title="Créer Facture"><i class="fas fa-euro-sign"></i></button>
+                        <button class="btn-red" style="padding:5px 10px; border:1px solid #fca5a5; background:#fee2e2; color:#dc2626; border-radius:4px; cursor:pointer;" onclick="window.supprimerClient('${doc.id}')" title="Supprimer"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        });
+        if(tbody.innerHTML === '') tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Aucun dossier trouvé.</td></tr>';
+    } catch (e) { tbody.innerHTML = `<tr><td colspan="5">Erreur connexion</td></tr>`; }
+};
+
+window.supprimerClient = async function(id) {
+    if(confirm("SUPPRIMER CE DOSSIER CLIENT DÉFINITIVEMENT ?")) {
+        try {
+            await deleteDoc(doc(db, "dossiers_clients", id));
+            window.rechercherDossier();
+        } catch(e) { alert("Erreur suppression: " + e.message); }
+    }
+};
+
+window.chargerDossier = async function(id) {
+    try {
+        const docRef = doc(db, "dossiers_clients", id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            currentDocId = id;
+            for (const [key, value] of Object.entries(data)) {
+                const el = document.getElementById(key);
+                if (el) {
+                    if(el.type === 'checkbox') el.checked = value;
+                    else el.value = value;
+                } else {
+                    const radios = document.getElementsByName(key);
+                    if(radios.length > 0) radios.forEach(r => { if(r.value === value) r.checked = true; });
+                }
+            }
+            window.toggleCeremonie();
+            window.toggleConjoint();
+            window.toggleProf(data.prof_type === 'autre');
+            window.toggleVol2();
+            document.getElementById('current-client-name').textContent = (data.nom || "") + " " + (data.prenom || "");
+            window.openTab('tab-dossier');
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.resetDossier = function() {
+    if(confirm("Vider le formulaire ?")) {
+        currentDocId = null;
+        document.querySelectorAll('input').forEach(i => i.value = '');
+        document.getElementById('faita').value = "Perpignan";
+        document.getElementById('current-client-name').textContent = "Nouveau";
+        window.openTab('tab-dossier');
+    }
+};
+
+// ... (Garder les fonctions UI openTab, switchView, calculs PDF existants ci-dessous, je ne les répète pas pour gagner de la place, copiez vos anciennes fonctions PDF ici) ...
+// AJOUTEZ JUSTE LES FONCTIONS PDF ET UI ICI SI ELLES N'Y SONT PAS
+window.openTab = function(tabName) { const contents = document.getElementsByClassName("tab-content"); for (let i = 0; i < contents.length; i++) contents[i].classList.remove("active", "hidden"); for (let i = 0; i < contents.length; i++) contents[i].classList.add("hidden"); const tabs = document.getElementsByClassName("tab-btn"); for (let i = 0; i < tabs.length; i++) tabs[i].classList.remove("active"); const target = document.getElementById(tabName); if(target) { target.classList.remove("hidden"); target.classList.add("active", "fade-in"); } if(tabName.includes('dossier')) tabs[0].classList.add('active'); else if(tabName.includes('documents')) tabs[1].classList.add('active'); else if(tabName.includes('technique')) tabs[2].classList.add('active'); else if(tabName.includes('base')) tabs[3].classList.add('active'); };
+window.switchView = function(viewName) { const trans = document.getElementById('section-transport'); const ferm = document.getElementById('section-fermeture'); if(trans) trans.classList.add('hidden'); if(ferm) ferm.classList.add('hidden'); if (viewName === 'transport') { if(trans) trans.classList.remove('hidden'); } else if (viewName === 'fermeture') { if(ferm) ferm.classList.remove('hidden'); } else if (viewName === 'main') { window.openTab('tab-dossier'); } };
+// ... (Incorporez ici vos fonctions PDF genererPouvoir, etc.) ...
 // --- NAVIGATION ---
 window.ouvrirApp = function(type) {
     document.getElementById('hub-accueil').classList.add('hidden');
