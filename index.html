@@ -11,7 +11,27 @@
 <body>
     <img id="logo-source" src="Logo.png" style="display: none;" crossorigin="anonymous">
 
-    <div id="login-screen">
+<div id="login-screen">
+        <div class="login-box">
+            <img src="Logo.png" alt="Logo" class="login-logo">
+            <h2 class="login-title">Espace Pro</h2>
+            
+            <input type="email" id="email-input" class="login-input" placeholder="Email (admin@...)" value="admin@pf-solidaire.com">
+            <input type="password" id="password-input" class="login-input" placeholder="Mot de passe">
+            
+            <div id="login-error-box" class="error-message hidden">
+                <i class="fas fa-exclamation-triangle"></i> <span id="error-text">Erreur</span>
+            </div>
+
+            <button onclick="window.loginFirebase()" class="btn-login">
+                Se connecter <i class="fas fa-arrow-right" style="margin-left:8px;"></i>
+            </button>
+            
+            <p style="margin-top:20px; font-size:0.85rem;">
+                <a href="#" onclick="window.motDePasseOublie()" style="color:#64748b; text-decoration:none; transition:0.2s;">Mot de passe oublié ?</a>
+            </p>
+        </div>
+    </div>
         <div class="login-box">
             <img src="Logo.png" alt="Logo" class="login-logo">
             <h2 class="login-title">Espace Pro</h2>

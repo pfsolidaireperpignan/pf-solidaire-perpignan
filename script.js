@@ -24,93 +24,110 @@ let currentDocId = null;
 /* ==========================================================================
    1. AUTHENTIFICATION & NAVIGATION
    ========================================================================== */
+/* ==========================================================================
+   1. AUTHENTIFICATION & NAVIGATION (SÉCURISÉE)
+   ========================================================================== */
 
-// Connexion
+// Fonction de Connexion
 window.loginFirebase = function() {
     const email = document.getElementById('email-input').value;
     const password = document.getElementById('password-input').value;
     const btn = document.querySelector('.btn-login');
-    const errorMsg = document.getElementById('login-error');
+    const errorBox = document.getElementById('login-error-box');
+    const loginBox = document.querySelector('.login-box');
 
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ...';
-
-    signInWithEmailAndPassword(auth, email, password)
-        .then(() => {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('hub-accueil').classList.remove('hidden');
-        })
-        .catch((error) => {
-            console.error("Erreur Auth:", error);
-            errorMsg.style.display = 'block';
-            btn.innerHTML = 'Connexion <i class="fas fa-arrow-right"></i>';
-        });
-};
-
-// MOT DE PASSE OUBLIÉ (NOUVEAU)
-window.motDePasseOublie = async function() {
-    const email = document.getElementById('email-input').value;
+    // 1. Reset visuel
+    errorBox.classList.add('hidden');
+    loginBox.classList.remove('shake');
     
-    if (!email) {
-        alert("Veuillez d'abord saisir votre adresse Email dans le champ ci-dessus.");
+    // 2. Vérification simple
+    if (!email || !password) {
+        showLoginError("Veuillez remplir tous les champs.");
         return;
     }
 
-    if(confirm("Envoyer un email de réinitialisation à " + email + " ?")) {
-        try {
-            await sendPasswordResetEmail(auth, email);
-            alert("Email envoyé ! Vérifiez votre boîte de réception (et vos spams).");
-        } catch (error) {
-            console.error(error);
-            alert("Erreur : " + error.message);
-        }
-    }
+    // 3. UI Chargement
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Vérification...';
+    btn.disabled = true;
+
+    // 4. Appel Firebase
+    signInWithEmailAndPassword(auth, email, password)
+        .then(() => {
+            // SUCCÈS : On laisse onAuthStateChanged gérer la transition
+            // (La redirection visuelle se fera automatiquement ci-dessous)
+        })
+        .catch((error) => {
+            // ÉCHEC : Message générique pour sécurité
+            console.error("Erreur technique:", error.code); // Pour vous (dev)
+            
+            // On remet le bouton
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+
+            // Message "Prestige" (ne dit pas si c'est l'email ou le mdp qui est faux)
+            showLoginError("Identifiants incorrects. Veuillez réessayer.");
+        });
 };
 
-// Déconnexion
-window.logout = function() {
-    signOut(auth).then(() => {
-        window.location.href = "index.html"; 
-    }).catch((error) => console.error(error));
-};
+// Afficher l'erreur joliment
+function showLoginError(msg) {
+    const errorBox = document.getElementById('login-error-box');
+    const loginBox = document.querySelector('.login-box');
+    
+    document.getElementById('error-text').textContent = msg;
+    errorBox.classList.remove('hidden');
+    
+    // Petite animation de secousse
+    loginBox.classList.add('shake');
+    setTimeout(() => loginBox.classList.remove('shake'), 500);
+}
 
-// Surveillance de l'état connecté
+// SURVEILLANCE DE L'ÉTAT (C'est lui qui gère l'affichage des écrans)
 onAuthStateChanged(auth, (user) => {
+    const loginScreen = document.getElementById('login-screen');
+    const hubScreen = document.getElementById('hub-accueil');
+
     if (user) {
-        document.getElementById('login-screen').style.display = 'none';
+        // --- UTILISATEUR CONNECTÉ ---
         
-        // GESTION DU RETOUR DEPUIS FACTURATION
+        // 1. Animation de sortie du login
+        loginScreen.classList.add('fade-out');
+        
+        // 2. Affichage du Hub
+        if(hubScreen) hubScreen.classList.remove('hidden');
+
+        // 3. Suppression totale du login après l'animation (500ms)
+        setTimeout(() => {
+            loginScreen.style.display = 'none'; // On le retire vraiment du flux
+        }, 500);
+
+        // GESTION DU RETOUR DEPUIS FACTURATION (Paramètre ?open_id=...)
         const urlParams = new URLSearchParams(window.location.search);
         const openId = urlParams.get('open_id');
         
         if(openId) {
-            document.getElementById('hub-accueil').classList.add('hidden');
+            hubScreen.classList.add('hidden');
             document.getElementById('app-content').classList.remove('hidden');
             window.openTab('tab-dossier');
             setTimeout(() => window.chargerDossier(openId), 500); 
-        } else {
-            if(document.getElementById('hub-accueil')) {
-                document.getElementById('hub-accueil').classList.remove('hidden');
-            }
         }
+
+    } else {
+        // --- UTILISATEUR DÉCONNECTÉ ---
+        loginScreen.style.display = 'flex';
+        loginScreen.classList.remove('fade-out');
+        if(hubScreen) hubScreen.classList.add('hidden');
+        document.getElementById('app-content').classList.add('hidden');
     }
 });
 
-// Ouvrir une Application depuis le Hub
-window.ouvrirApp = function(type) {
-    document.getElementById('hub-accueil').classList.add('hidden');
-    if (type === 'admin') {
-        document.getElementById('app-content').classList.remove('hidden');
-        window.openTab('tab-dossier');
-    } else if (type === 'devis') {
-        window.location.href = "facturation.html";
-    }
-};
-
-// Retour au Hub
-window.retourHub = function() {
-    document.getElementById('app-content').classList.add('hidden');
-    document.getElementById('hub-accueil').classList.remove('hidden');
-    window.history.pushState({}, document.title, window.location.pathname);
+// Déconnexion propre
+window.logout = function() {
+    signOut(auth).then(() => {
+        // Le onAuthStateChanged va automatiquement remettre l'écran de login
+        window.location.href = "index.html"; 
+    }).catch((error) => console.error(error));
 };
 
 /* ==========================================================================
