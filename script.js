@@ -3,11 +3,12 @@
    ========================================================================== */
 import { db, auth } from './js/config.js';
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+// AJOUT DE sendPasswordResetEmail ICI vvv
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut, updatePassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { chargerLogoBase64, getVal } from './js/utils.js';
 import { genererPouvoir, genererDeclaration, genererDemandeInhumation, genererDemandeCremation, genererDemandeRapatriement, genererDemandeFermetureMairie, genererDemandeOuverture, genererFermeture, genererTransport } from './js/pdf_admin.js';
 
-// ATTACHER LES FONCTIONS AU WINDOW POUR LES BOUTONS HTML
+// ATTACHER LES FONCTIONS AU WINDOW
 window.genererPouvoir = genererPouvoir;
 window.genererDeclaration = genererDeclaration;
 window.genererDemandeInhumation = genererDemandeInhumation;
@@ -45,6 +46,26 @@ window.loginFirebase = function() {
         });
 };
 
+// MOT DE PASSE OUBLIÉ (NOUVEAU)
+window.motDePasseOublie = async function() {
+    const email = document.getElementById('email-input').value;
+    
+    if (!email) {
+        alert("Veuillez d'abord saisir votre adresse Email dans le champ ci-dessus.");
+        return;
+    }
+
+    if(confirm("Envoyer un email de réinitialisation à " + email + " ?")) {
+        try {
+            await sendPasswordResetEmail(auth, email);
+            alert("Email envoyé ! Vérifiez votre boîte de réception (et vos spams).");
+        } catch (error) {
+            console.error(error);
+            alert("Erreur : " + error.message);
+        }
+    }
+};
+
 // Déconnexion
 window.logout = function() {
     signOut(auth).then(() => {
@@ -57,7 +78,7 @@ onAuthStateChanged(auth, (user) => {
     if (user) {
         document.getElementById('login-screen').style.display = 'none';
         
-        // GESTION DU RETOUR DEPUIS FACTURATION (Paramètre ?open_id=...)
+        // GESTION DU RETOUR DEPUIS FACTURATION
         const urlParams = new URLSearchParams(window.location.search);
         const openId = urlParams.get('open_id');
         
@@ -93,7 +114,7 @@ window.retourHub = function() {
 };
 
 /* ==========================================================================
-   2. GESTION DU MOT DE PASSE (MODALE)
+   2. GESTION DU MOT DE PASSE (MODALE INTERNE)
    ========================================================================== */
 
 window.ouvrirModalMdp = function() {
