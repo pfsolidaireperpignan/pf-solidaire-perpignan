@@ -24,8 +24,10 @@ body {
     padding: 0;
 }
 
+.hidden { display: none !important; }
+
 /* =========================================
-   1. ECRAN DE CONNEXION (LOGIN)
+   1. LOGIN & HUB
    ========================================= */
 #login-screen {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -47,14 +49,8 @@ body {
     font-size: 1rem; font-weight: 500; transition: background 0.2s;
 }
 .btn-login:hover { background-color: #0f172a; }
-.error-msg {
-    color: var(--danger); font-size: 0.9rem; margin-top: 15px; display: none;
-    background: #fee2e2; padding: 10px; border-radius: 6px;
-}
 
-/* =========================================
-   2. HUB D'ACCUEIL (CHOIX APP)
-   ========================================= */
+/* HUB */
 #hub-accueil {
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; min-height: 90vh; padding: 20px;
@@ -77,14 +73,14 @@ body {
     display: flex; align-items: center; justify-content: center;
     margin-left: auto; margin-right: auto;
 }
-.hub-card h3 { color: var(--primary-dark); margin-bottom: 10px; font-size: 1.1rem; }
-.hub-card p { color: #64748b; font-size: 0.9rem; line-height: 1.4; }
 
 /* =========================================
-   3. LAYOUT GENERAL (HEADER & WRAPPER)
+   2. LAYOUT GENERAL & NAVIGATION
    ========================================= */
 .main-wrapper { max-width: 900px; margin: 40px auto; padding: 0 20px; }
-.hidden { display: none !important; }
+.invoice-wrapper { max-width: 1200px; margin: 20px auto; padding: 20px; background: white; min-height: 100vh; }
+
+.top-bar { border-top: 5px solid #eab308; margin-bottom: 20px; }
 
 header { 
     background: white; padding: 20px 25px; border-radius: 12px;
@@ -95,9 +91,6 @@ header {
 .brand-title { font-size: 1.4rem; margin: 0; font-weight: 800; letter-spacing: -0.5px; }
 .brand-subtitle { color: #64748b; font-size: 0.85rem; margin-top: 2px; }
 
-/* =========================================
-   4. NAVIGATION ONGLETS (TABS)
-   ========================================= */
 .tab-navigation {
     display: flex; gap: 10px; margin-bottom: 25px;
     background: #e2e8f0; padding: 5px; border-radius: 10px;
@@ -117,7 +110,7 @@ header {
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 /* =========================================
-   5. CARTES & FORMULAIRES
+   3. FORMULAIRES & INPUTS
    ========================================= */
 .card {
     background: var(--bg-card); border-radius: 12px;
@@ -129,7 +122,6 @@ header {
     color: var(--primary-dark); border-bottom: 1px solid var(--border-color);
     font-size: 0.95rem; display: flex; align-items: center; gap: 10px;
 }
-.card-header i { color: var(--accent); }
 .card-body { padding: 25px; }
 
 .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -145,12 +137,9 @@ input, select, textarea {
     border: 1px solid #cbd5e1; border-radius: 6px; color: #334155;
     font-size: 0.9rem; font-family: inherit; transition: all 0.2s; box-sizing: border-box;
 }
-input:focus, select:focus, textarea:focus { 
-    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); outline: none; 
-}
-input:disabled { background-color: #f1f5f9; cursor: not-allowed; color: #94a3b8; }
+input:focus, select:focus { border-color: var(--accent); outline: none; background: #f0f9ff; }
 
-/* Segment Control (Radio Buttons modernes) */
+/* Segment Control (Radio) */
 .segment-control {
     display: flex; background: #f1f5f9; padding: 3px;
     border-radius: 8px; border: 1px solid #e2e8f0; height: 38px;
@@ -168,7 +157,7 @@ input:disabled { background-color: #f1f5f9; cursor: not-allowed; color: #94a3b8;
 }
 
 /* =========================================
-   6. BOUTONS & ACTIONS
+   4. BOUTONS
    ========================================= */
 .actions-bar { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
 .actions-bar.center { justify-content: center; }
@@ -186,12 +175,50 @@ input:disabled { background-color: #f1f5f9; cursor: not-allowed; color: #94a3b8;
 .btn-purple { background-color: var(--purple-brand); color: white; }
 .big-btn { width: 100%; max-width: 300px; justify-content: center; padding: 14px; font-size: 1rem; }
 
-/* Modules Navigation (Ancien système, gardé pour compatibilité) */
-.modules-nav { margin-top: 40px; }
-.modules-nav h3 {
-    font-size: 1rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;
-    margin-bottom: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;
+/* =========================================
+   5. TABLEAUX & LISTES
+   ========================================= */
+.table-responsive { overflow-x: auto; border-radius: 8px; border: 1px solid #e2e8f0; }
+.client-table, .history-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.client-table th, .history-table th {
+    background-color: #f8fafc; color: var(--primary); font-weight: 600;
+    text-align: left; padding: 12px 15px; border-bottom: 1px solid #e2e8f0;
 }
+.client-table td, .history-table td {
+    padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #475569;
+}
+.client-table tr:hover, .history-table tr:hover { background-color: #f1f5f9; }
+
+/* Status Tags (Devis/Facture) */
+.status-tag { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+.tag-devis { background: #e0f2fe; color: #0369a1; }
+.tag-facture { background: #dcfce7; color: #166534; }
+
+/* =========================================
+   6. SPECIFIQUE FACTURATION
+   ========================================= */
+.list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #f1f5f9; }
+.form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+.header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px; }
+.client-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; }
+
+.invoice-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
+.invoice-table th { background: #e2e8f0; color: #1e293b; padding: 10px; border: 1px solid #cbd5e1; text-align: center; }
+.invoice-table td { border: 1px solid #e5e7eb; padding: 0; background: white; vertical-align: middle; }
+.invoice-table input, .invoice-table select { width: 100%; padding: 8px; border: none; background: transparent; font-family: inherit; }
+
+/* Lignes spéciales */
+tr.section-row td { background: #fff7ed !important; border-color: #fdba74; }
+tr.section-row input { font-weight: bold; color: #9a3412; text-transform: uppercase; }
+
+/* Drag & Drop */
+.drag-handle { cursor: grab; color: #94a3b8; padding: 0 10px; font-size: 1.1rem; text-align: center; display: block; }
+.drag-handle:active { cursor: grabbing; color: var(--accent); }
+.dragging { opacity: 0.5; background: #e2e8f0; }
+
+.total-box { margin-top: 20px; text-align: right; font-size: 1.4rem; font-weight: bold; color: #166534; padding: 15px; background: #f0fdf4; border: 1px solid #166534; }
+
+/* Modules Nav (Admin) */
 .modules-buttons { display: flex; gap: 20px; }
 .btn-module {
     flex: 1; background: white; border: 1px solid #e2e8f0; padding: 20px;
@@ -201,7 +228,6 @@ input:disabled { background-color: #f1f5f9; cursor: not-allowed; color: #94a3b8;
 .btn-module i { font-size: 1.5rem; color: var(--accent); }
 .btn-module span { font-weight: 600; color: var(--primary); }
 .btn-module:hover { border-color: var(--accent); transform: translateY(-2px); }
-
 .module-banner {
     background: var(--primary-dark); color: white; padding: 20px;
     border-radius: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;
@@ -210,51 +236,28 @@ input:disabled { background-color: #f1f5f9; cursor: not-allowed; color: #94a3b8;
     background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
     color: white; padding: 6px 14px; border-radius: 20px; cursor: pointer;
 }
-
-/* =========================================
-   7. TABLEAU BASE DE DONNEES
-   ========================================= */
-.table-responsive {
-    overflow-x: auto; border-radius: 8px; border: 1px solid #e2e8f0;
-}
-.client-table {
-    width: 100%; border-collapse: collapse; font-size: 0.9rem;
-}
-.client-table th {
-    background-color: #f8fafc; color: var(--primary); font-weight: 600;
-    text-align: left; padding: 12px 15px; border-bottom: 1px solid #e2e8f0;
-}
-.client-table td {
-    padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #475569;
-}
-.client-table tr:hover { background-color: #f1f5f9; }
-.badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
-.badge-inhumation { background: #dcfce7; color: #166534; }
-.badge-cremation { background: #f3e8ff; color: #6b21a8; }
-.badge-rapatriement { background: #fee2e2; color: #991b1b; }
-
-/* =========================================
-   8. UTILITAIRES
-   ========================================= */
-.divider {
-    display: flex; align-items: center; margin: 15px 0;
-    color: #cbd5e1; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-}
+.divider { display: flex; align-items: center; margin: 15px 0; color: #cbd5e1; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
 .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #e2e8f0; }
 .divider span { padding: 0 10px; color: #94a3b8; }
 
-.notice-box {
-    background: #eff6ff; border-left: 3px solid var(--accent);
-    padding: 12px; font-size: 0.85rem; color: #1e40af; border-radius: 4px;
-}
-.btn-link { background: none; border: none; color: var(--accent); text-decoration: underline; cursor: pointer; font-size: 0.85rem; }
-
-/* Responsive Mobile */
+/* Responsive */
 @media (max-width: 768px) {
-    .grid-form { grid-template-columns: 1fr; }
+    .grid-form, .header-grid { grid-template-columns: 1fr; }
     .span-2 { grid-column: auto; }
-    .modules-buttons { flex-direction: column; }
     .header-container { flex-direction: column; text-align: center; }
     .tab-navigation { flex-direction: column; }
-    .hub-buttons-container { flex-direction: column; align-items: center; }
 }
+/* =========================================
+   7. MODALE (CHANGEMENT MOT DE PASSE)
+   ========================================= */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.5); z-index: 1000;
+    display: flex; justify-content: center; align-items: center;
+}
+.modal-box {
+    background: white; padding: 30px; border-radius: 12px;
+    width: 90%; max-width: 400px; text-align: center;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+.modal-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; color: #1e293b; }

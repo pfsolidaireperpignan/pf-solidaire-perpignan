@@ -24,7 +24,7 @@
             <button onclick="window.loginFirebase()" class="btn-login">
                 Connexion <i class="fas fa-arrow-right" style="margin-left:8px;"></i>
             </button>
-            <p id="login-error" class="error-msg" style="display:none; color:#ef4444; margin-top:10px;">
+            <p id="login-error" class="hidden" style="color:#ef4444; margin-top:10px;">
                 <i class="fas fa-exclamation-circle"></i> Erreur d'identification
             </p>
         </div>
@@ -33,7 +33,14 @@
     <div id="hub-accueil" class="main-wrapper hidden" style="text-align:center; margin-top:80px;">
         <img src="Logo.png" alt="Logo" style="height:100px; margin-bottom:20px;">
         <h1 class="brand-title" style="margin-bottom:40px;">Bienvenue, que souhaitez-vous faire ?</h1>
-        
+        <div style="margin-top:50px; display:flex; gap:15px; justify-content:center;">
+            <button onclick="window.ouvrirModalMdp()" class="btn btn-outline" style="border-color:#cbd5e1;">
+                <i class="fas fa-key"></i> Modifier mot de passe
+            </button>
+            <button onclick="window.logout()" class="btn btn-red">
+                <i class="fas fa-power-off"></i> Se déconnecter
+            </button>
+        </div>
         <div class="hub-buttons-container">
             <div class="hub-card" onclick="window.ouvrirApp('admin')">
                 <div class="hub-icon"><i class="fas fa-folder-open"></i></div>
@@ -97,7 +104,7 @@
                     <div class="input-group"><label>Nationalité</label><input id="nationalite_mandant" value="Française"></div>
                 </div>
             </div>
-
+            
             <div class="card">
                 <div class="card-header"><i class="fas fa-user-clock"></i> Défunt</div>
                 <div class="card-body grid-form">
@@ -349,7 +356,19 @@
         </div>
 
     </div>
-    
+    <div id="modal-mdp" class="modal-overlay hidden">
+        <div class="modal-box">
+            <h3 class="modal-title">Nouveau mot de passe</h3>
+            <p style="color:#64748b; font-size:0.9rem; margin-bottom:20px;">Veuillez saisir votre nouveau mot de passe (6 caractères min).</p>
+            
+            <input type="password" id="new-password" placeholder="Nouveau mot de passe..." style="margin-bottom:20px; text-align:center;">
+            
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button onclick="window.fermerModalMdp()" class="btn btn-outline">Annuler</button>
+                <button onclick="window.validerNouveauMdp()" class="btn btn-green">Valider</button>
+            </div>
+        </div>
+    </div>
     <script type="module" src="script.js"></script>
 </body>
 </html>
