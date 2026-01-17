@@ -3,12 +3,11 @@
    ========================================================================== */
 import { db, auth } from './js/config.js';
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-// AJOUT DE sendPasswordResetEmail ICI vvv
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut, updatePassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { chargerLogoBase64, getVal } from './js/utils.js';
 import { genererPouvoir, genererDeclaration, genererDemandeInhumation, genererDemandeCremation, genererDemandeRapatriement, genererDemandeFermetureMairie, genererDemandeOuverture, genererFermeture, genererTransport } from './js/pdf_admin.js';
 
-// ATTACHER LES FONCTIONS AU WINDOW
+// ATTACHER LES FONCTIONS AU WINDOW POUR LES BOUTONS HTML
 window.genererPouvoir = genererPouvoir;
 window.genererDeclaration = genererDeclaration;
 window.genererDemandeInhumation = genererDemandeInhumation;
@@ -24,11 +23,8 @@ let currentDocId = null;
 /* ==========================================================================
    1. AUTHENTIFICATION & NAVIGATION
    ========================================================================== */
-/* ==========================================================================
-   1. AUTHENTIFICATION & NAVIGATION (SÉCURISÉE)
-   ========================================================================== */
 
-// Fonction de Connexion
+// Connexion sécurisée avec message d'erreur générique et animation
 window.loginFirebase = function() {
     const email = document.getElementById('email-input').value;
     const password = document.getElementById('password-input').value;
@@ -36,73 +32,83 @@ window.loginFirebase = function() {
     const errorBox = document.getElementById('login-error-box');
     const loginBox = document.querySelector('.login-box');
 
-    // 1. Reset visuel
+    // Reset visuel
     errorBox.classList.add('hidden');
     loginBox.classList.remove('shake');
     
-    // 2. Vérification simple
     if (!email || !password) {
         showLoginError("Veuillez remplir tous les champs.");
         return;
     }
 
-    // 3. UI Chargement
+    // Spinner
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Vérification...';
     btn.disabled = true;
 
-    // 4. Appel Firebase
     signInWithEmailAndPassword(auth, email, password)
         .then(() => {
-            // SUCCÈS : On laisse onAuthStateChanged gérer la transition
-            // (La redirection visuelle se fera automatiquement ci-dessous)
+            // Succès : onAuthStateChanged gère la suite
         })
         .catch((error) => {
-            // ÉCHEC : Message générique pour sécurité
-            console.error("Erreur technique:", error.code); // Pour vous (dev)
-            
-            // On remet le bouton
+            console.error("Erreur technique:", error.code);
             btn.innerHTML = originalText;
             btn.disabled = false;
-
-            // Message "Prestige" (ne dit pas si c'est l'email ou le mdp qui est faux)
             showLoginError("Identifiants incorrects. Veuillez réessayer.");
         });
 };
 
-// Afficher l'erreur joliment
 function showLoginError(msg) {
     const errorBox = document.getElementById('login-error-box');
     const loginBox = document.querySelector('.login-box');
-    
     document.getElementById('error-text').textContent = msg;
     errorBox.classList.remove('hidden');
-    
-    // Petite animation de secousse
     loginBox.classList.add('shake');
     setTimeout(() => loginBox.classList.remove('shake'), 500);
 }
 
-// SURVEILLANCE DE L'ÉTAT (C'est lui qui gère l'affichage des écrans)
+// Mot de passe oublié
+window.motDePasseOublie = async function() {
+    const email = document.getElementById('email-input').value;
+    if (!email) {
+        alert("Veuillez saisir votre email dans le champ ci-dessus d'abord.");
+        return;
+    }
+    if(confirm("Envoyer un email de réinitialisation à " + email + " ?")) {
+        try {
+            await sendPasswordResetEmail(auth, email);
+            alert("Email envoyé ! Vérifiez votre boîte de réception.");
+        } catch (error) {
+            console.error(error);
+            alert("Erreur : " + error.message);
+        }
+    }
+};
+
+// Déconnexion
+window.logout = function() {
+    signOut(auth).then(() => {
+        window.location.href = "index.html"; 
+    }).catch((error) => console.error(error));
+};
+
+// Surveillance de l'état connecté (Gère la disparition fluide du login)
 onAuthStateChanged(auth, (user) => {
     const loginScreen = document.getElementById('login-screen');
     const hubScreen = document.getElementById('hub-accueil');
 
     if (user) {
-        // --- UTILISATEUR CONNECTÉ ---
+        // CONNECTÉ
+        loginScreen.classList.add('fade-out'); // Déclenche l'animation CSS
         
-        // 1. Animation de sortie du login
-        loginScreen.classList.add('fade-out');
-        
-        // 2. Affichage du Hub
         if(hubScreen) hubScreen.classList.remove('hidden');
 
-        // 3. Suppression totale du login après l'animation (500ms)
+        // Retire complètement l'écran après l'animation
         setTimeout(() => {
-            loginScreen.style.display = 'none'; // On le retire vraiment du flux
+            loginScreen.style.display = 'none';
         }, 500);
 
-        // GESTION DU RETOUR DEPUIS FACTURATION (Paramètre ?open_id=...)
+        // Gestion redirection depuis facturation
         const urlParams = new URLSearchParams(window.location.search);
         const openId = urlParams.get('open_id');
         
@@ -112,9 +118,8 @@ onAuthStateChanged(auth, (user) => {
             window.openTab('tab-dossier');
             setTimeout(() => window.chargerDossier(openId), 500); 
         }
-
     } else {
-        // --- UTILISATEUR DÉCONNECTÉ ---
+        // DÉCONNECTÉ
         loginScreen.style.display = 'flex';
         loginScreen.classList.remove('fade-out');
         if(hubScreen) hubScreen.classList.add('hidden');
@@ -122,27 +127,32 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// Déconnexion propre
-window.logout = function() {
-    signOut(auth).then(() => {
-        // Le onAuthStateChanged va automatiquement remettre l'écran de login
-        window.location.href = "index.html"; 
-    }).catch((error) => console.error(error));
+window.ouvrirApp = function(type) {
+    document.getElementById('hub-accueil').classList.add('hidden');
+    if (type === 'admin') {
+        document.getElementById('app-content').classList.remove('hidden');
+        window.openTab('tab-dossier');
+    } else if (type === 'devis') {
+        window.location.href = "facturation.html";
+    }
+};
+
+window.retourHub = function() {
+    document.getElementById('app-content').classList.add('hidden');
+    document.getElementById('hub-accueil').classList.remove('hidden');
+    window.history.pushState({}, document.title, window.location.pathname);
 };
 
 /* ==========================================================================
-   2. GESTION DU MOT DE PASSE (MODALE INTERNE)
+   2. GESTION DU MOT DE PASSE (MODALE)
    ========================================================================== */
-
 window.ouvrirModalMdp = function() {
     document.getElementById('modal-mdp').classList.remove('hidden');
     document.getElementById('new-password').value = "";
 };
-
 window.fermerModalMdp = function() {
     document.getElementById('modal-mdp').classList.add('hidden');
 };
-
 window.validerNouveauMdp = async function() {
     const newPass = document.getElementById('new-password').value;
     if (newPass.length < 6) {
@@ -156,7 +166,6 @@ window.validerNouveauMdp = async function() {
             alert("Mot de passe modifié avec succès !");
             window.fermerModalMdp();
         } catch (error) {
-            console.error(error);
             if (error.code === 'auth/requires-recent-login') {
                 alert("Par sécurité, veuillez vous reconnecter avant de modifier le mot de passe.");
                 window.logout();
@@ -164,21 +173,16 @@ window.validerNouveauMdp = async function() {
                 alert("Erreur : " + error.message);
             }
         }
-    } else {
-        alert("Erreur : Utilisateur non connecté.");
     }
 };
 
 /* ==========================================================================
    3. GESTION ADMINISTRATIVE (CRUD)
    ========================================================================== */
-
-// Sauvegarder
 window.sauvegarderClient = async function() {
     const btn = document.querySelector('.btn-green');
     const originalText = btn.innerHTML;
     btn.innerHTML = 'Envoi...';
-    
     try {
         const data = {};
         document.querySelectorAll('input, select').forEach(el => {
@@ -188,7 +192,6 @@ window.sauvegarderClient = async function() {
                 else data[el.id] = el.value;
             }
         });
-        
         data.lastModified = new Date().toISOString();
         if(!data.dateCreation) data.dateCreation = new Date().toISOString();
 
@@ -201,30 +204,24 @@ window.sauvegarderClient = async function() {
             alert("Nouveau dossier créé !");
         }
         document.getElementById('current-client-name').textContent = (data.nom || "") + " " + (data.prenom || "");
-        
     } catch (e) { alert("Erreur sauvegarde : " + e.message); }
     btn.innerHTML = originalText;
 };
 
-// Rechercher
 window.rechercherDossier = async function() {
     const searchVal = document.getElementById('search-input').value.toLowerCase();
     const tbody = document.getElementById('clients-list-body');
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Chargement...</td></tr>';
-    
     try {
         const q = query(collection(db, "dossiers_clients"), orderBy("lastModified", "desc"));
         const querySnapshot = await getDocs(q);
         tbody.innerHTML = '';
-        
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             const fullName = `${data.nom || ''} ${data.prenom || ''}`.toLowerCase();
-            
             if (fullName.includes(searchVal)) {
                 const tr = document.createElement('tr');
                 const dateD = data.date_deces ? data.date_deces.split('-').reverse().join('/') : '-';
-                
                 tr.innerHTML = `
                     <td style="font-weight:bold;">${data.nom || ''} ${data.prenom || ''}</td>
                     <td>${dateD}</td>
@@ -242,7 +239,6 @@ window.rechercherDossier = async function() {
     } catch (e) { tbody.innerHTML = `<tr><td colspan="5">Erreur connexion</td></tr>`; }
 };
 
-// Supprimer
 window.supprimerClient = async function(id) {
     if(confirm("ATTENTION : Supprimer ce dossier définitivement ?")) {
         try {
@@ -252,7 +248,6 @@ window.supprimerClient = async function(id) {
     }
 };
 
-// Charger
 window.chargerDossier = async function(id) {
     try {
         const docRef = doc(db, "dossiers_clients", id);
@@ -293,7 +288,6 @@ window.resetDossier = function() {
 /* ==========================================================================
    4. UI HELPERS
    ========================================================================== */
-
 window.openTab = function(tabName) {
     const contents = document.getElementsByClassName("tab-content");
     for (let i = 0; i < contents.length; i++) contents[i].classList.remove("active", "hidden");
@@ -302,12 +296,10 @@ window.openTab = function(tabName) {
     for (let i = 0; i < tabs.length; i++) tabs[i].classList.remove("active");
     const target = document.getElementById(tabName);
     if(target) { target.classList.remove("hidden"); target.classList.add("active", "fade-in"); }
-    
     if(tabName.includes('dossier')) tabs[0]?.classList.add('active');
     else if(tabName.includes('documents')) tabs[1]?.classList.add('active');
     else if(tabName.includes('technique')) tabs[2]?.classList.add('active');
     else if(tabName.includes('base')) tabs[3]?.classList.add('active');
-
     if(tabName === 'tab-technique') {
         const trans = document.getElementById('section-transport');
         const ferm = document.getElementById('section-fermeture');
@@ -321,7 +313,6 @@ window.switchView = function(viewName) {
     const ferm = document.getElementById('section-fermeture');
     if(trans) trans.classList.add('hidden');
     if(ferm) ferm.classList.add('hidden');
-
     if (viewName === 'transport') {
         if(trans) trans.classList.remove('hidden');
         if(!getVal("faita_transport")) { const el = document.getElementById('faita_transport'); if(el) el.value = getVal("faita"); }
@@ -350,14 +341,12 @@ window.toggleCeremonie = function() {
     const el = document.getElementById('prestation');
     if(!el) return;
     const type = el.value;
-    
     ['bloc_inhumation', 'bloc_cremation', 'bloc_rapatriement'].forEach(id => {
         const bl = document.getElementById(id); if(bl) bl.classList.add('hidden');
     });
     ['btn_inhumation', 'btn_cremation', 'btn_rapatriement'].forEach(id => {
         const bt = document.getElementById(id); if(bt) bt.classList.add('hidden');
     });
-
     if (type === "Crémation") {
         document.getElementById('bloc_cremation')?.classList.remove('hidden');
         document.getElementById('btn_cremation')?.classList.remove('hidden');

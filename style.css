@@ -27,37 +27,80 @@ body {
 .hidden { display: none !important; }
 
 /* =========================================
-   1. LOGIN & HUB
+   1. LOGIN PRESTIGE (CORRIGÉ & ANIMÉ)
    ========================================= */
 #login-screen {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    position: fixed; 
+    top: 0; left: 0; width: 100%; height: 100%;
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     display: flex; justify-content: center; align-items: center;
-    z-index: 9999;
+    z-index: 10000; /* Toujours au-dessus */
+    transition: opacity 0.5s ease, visibility 0.5s;
 }
+
+/* Classe ajoutée en JS pour cacher l'écran */
+#login-screen.fade-out {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
 .login-box {
-    background: white; padding: 40px; border-radius: 16px;
-    text-align: center; width: 90%; max-width: 360px;
-    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 40px; border-radius: 16px;
+    text-align: center; width: 90%; max-width: 380px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    transform: translateY(0);
 }
-.login-logo { width: 80px; margin-bottom: 20px; }
-.login-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 25px; }
+
+/* Animation de secousse (Erreur mot de passe) */
+.shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+.login-logo { width: 90px; margin-bottom: 20px; }
+.login-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 25px; color: #1e293b; }
+
+.login-input {
+    width: 100%; padding: 14px 16px; margin-bottom: 15px;
+    background-color: #f1f5f9; border: 2px solid transparent;
+    border-radius: 8px; font-size: 0.95rem; color: #334155;
+    transition: all 0.2s; box-sizing: border-box;
+}
+.login-input:focus {
+    background-color: white; border-color: var(--accent);
+    outline: none; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
 .btn-login {
-    width: 100%; margin-top: 20px;
+    width: 100%; margin-top: 10px;
     background-color: var(--primary-dark); color: white;
-    padding: 12px; border-radius: var(--radius); border: none; cursor: pointer;
-    font-size: 1rem; font-weight: 500; transition: background 0.2s;
+    padding: 14px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 1rem; font-weight: 600; transition: background 0.2s;
 }
 .btn-login:hover { background-color: #0f172a; }
 
-/* HUB */
+/* Message erreur élégant */
+.error-message {
+    background-color: #fee2e2; color: #991b1b;
+    padding: 10px; border-radius: 6px; font-size: 0.85rem;
+    margin-top: 15px; border: 1px solid #fecaca;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+
+/* =========================================
+   2. HUB & LAYOUT
+   ========================================= */
 #hub-accueil {
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; min-height: 90vh; padding: 20px;
 }
-.hub-buttons-container {
-    display: flex; gap: 30px; flex-wrap: wrap; justify-content: center;
-}
+.hub-buttons-container { display: flex; gap: 30px; flex-wrap: wrap; justify-content: center; }
 .hub-card {
     background: white; border: 1px solid #e2e8f0; border-radius: 16px;
     padding: 40px 30px; width: 260px; text-align: center; cursor: pointer;
@@ -70,18 +113,10 @@ body {
 .hub-icon {
     font-size: 3rem; color: var(--accent); margin-bottom: 20px;
     background: #eff6ff; width: 80px; height: 80px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    margin-left: auto; margin-right: auto;
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;
 }
 
-/* =========================================
-   2. LAYOUT GENERAL & NAVIGATION
-   ========================================= */
 .main-wrapper { max-width: 900px; margin: 40px auto; padding: 0 20px; }
-.invoice-wrapper { max-width: 1200px; margin: 20px auto; padding: 20px; background: white; min-height: 100vh; }
-
-.top-bar { border-top: 5px solid #eab308; margin-bottom: 20px; }
-
 header { 
     background: white; padding: 20px 25px; border-radius: 12px;
     box-shadow: var(--shadow-sm); margin-bottom: 20px; border: 1px solid var(--border-color);
@@ -91,6 +126,9 @@ header {
 .brand-title { font-size: 1.4rem; margin: 0; font-weight: 800; letter-spacing: -0.5px; }
 .brand-subtitle { color: #64748b; font-size: 0.85rem; margin-top: 2px; }
 
+/* =========================================
+   3. NAVIGATION ONGLETS
+   ========================================= */
 .tab-navigation {
     display: flex; gap: 10px; margin-bottom: 25px;
     background: #e2e8f0; padding: 5px; border-radius: 10px;
@@ -101,21 +139,18 @@ header {
     color: #64748b; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 .tab-btn:hover { background: rgba(255,255,255,0.5); color: var(--primary-dark); }
-.tab-btn.active {
-    background: white; color: var(--accent); box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
+.tab-btn.active { background: white; color: var(--accent); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 .fade-in { animation: fadeIn 0.4s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 /* =========================================
-   3. FORMULAIRES & INPUTS
+   4. FORMULAIRES UI
    ========================================= */
 .card {
     background: var(--bg-card); border-radius: 12px;
-    box-shadow: var(--shadow-sm); margin-bottom: 25px;
-    border: 1px solid var(--border-color); overflow: hidden;
+    box-shadow: var(--shadow-sm); margin-bottom: 25px; border: 1px solid var(--border-color); overflow: hidden;
 }
 .card-header {
     background: #f8fafc; padding: 15px 25px; font-weight: 600;
@@ -123,7 +158,6 @@ header {
     font-size: 0.95rem; display: flex; align-items: center; gap: 10px;
 }
 .card-body { padding: 25px; }
-
 .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .span-2 { grid-column: span 2; }
 
@@ -131,37 +165,29 @@ header {
     display: block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
     color: #64748b; margin-bottom: 6px; letter-spacing: 0.03em;
 }
-
-input, select, textarea {
+input, select {
     width: 100%; padding: 10px 12px; background-color: var(--input-bg);
     border: 1px solid #cbd5e1; border-radius: 6px; color: #334155;
     font-size: 0.9rem; font-family: inherit; transition: all 0.2s; box-sizing: border-box;
 }
 input:focus, select:focus { border-color: var(--accent); outline: none; background: #f0f9ff; }
 
-/* Segment Control (Radio) */
-.segment-control {
-    display: flex; background: #f1f5f9; padding: 3px;
-    border-radius: 8px; border: 1px solid #e2e8f0; height: 38px;
-}
+.segment-control { display: flex; background: #f1f5f9; padding: 3px; border-radius: 8px; border: 1px solid #e2e8f0; height: 38px; }
 .segment-control label { flex: 1; margin: 0; position: relative; cursor: pointer; display: flex; justify-content: center; align-items: center; }
 .segment-control input { position: absolute; opacity: 0; width: 0; }
 .segment-control span {
     width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-    font-size: 0.85rem; font-weight: 500; color: #64748b;
-    border-radius: 6px; transition: all 0.2s;
+    font-size: 0.85rem; font-weight: 500; color: #64748b; border-radius: 6px; transition: all 0.2s;
 }
 .segment-control input:checked + span {
-    background: white; color: var(--accent); font-weight: 600;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    background: white; color: var(--accent); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 /* =========================================
-   4. BOUTONS
+   5. BOUTONS & ACTIONS
    ========================================= */
 .actions-bar { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
 .actions-bar.center { justify-content: center; }
-
 .btn {
     border: none; padding: 10px 20px; border-radius: 6px;
     font-size: 0.9rem; font-weight: 500; cursor: pointer;
@@ -176,84 +202,37 @@ input:focus, select:focus { border-color: var(--accent); outline: none; backgrou
 .big-btn { width: 100%; max-width: 300px; justify-content: center; padding: 14px; font-size: 1rem; }
 
 /* =========================================
-   5. TABLEAUX & LISTES
+   6. TABLES & MODULES
    ========================================= */
 .table-responsive { overflow-x: auto; border-radius: 8px; border: 1px solid #e2e8f0; }
-.client-table, .history-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-.client-table th, .history-table th {
-    background-color: #f8fafc; color: var(--primary); font-weight: 600;
-    text-align: left; padding: 12px 15px; border-bottom: 1px solid #e2e8f0;
-}
-.client-table td, .history-table td {
-    padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #475569;
-}
-.client-table tr:hover, .history-table tr:hover { background-color: #f1f5f9; }
+.client-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.client-table th { background-color: #f8fafc; color: var(--primary); font-weight: 600; text-align: left; padding: 12px 15px; border-bottom: 1px solid #e2e8f0; }
+.client-table td { padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #475569; }
+.client-table tr:hover { background-color: #f1f5f9; }
 
-/* Status Tags (Devis/Facture) */
-.status-tag { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
-.tag-devis { background: #e0f2fe; color: #0369a1; }
-.tag-facture { background: #dcfce7; color: #166534; }
-
-/* =========================================
-   6. SPECIFIQUE FACTURATION
-   ========================================= */
-.list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #f1f5f9; }
-.form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-.header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px; }
-.client-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; }
-
-.invoice-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
-.invoice-table th { background: #e2e8f0; color: #1e293b; padding: 10px; border: 1px solid #cbd5e1; text-align: center; }
-.invoice-table td { border: 1px solid #e5e7eb; padding: 0; background: white; vertical-align: middle; }
-.invoice-table input, .invoice-table select { width: 100%; padding: 8px; border: none; background: transparent; font-family: inherit; }
-
-/* Lignes spéciales */
-tr.section-row td { background: #fff7ed !important; border-color: #fdba74; }
-tr.section-row input { font-weight: bold; color: #9a3412; text-transform: uppercase; }
-
-/* Drag & Drop */
-.drag-handle { cursor: grab; color: #94a3b8; padding: 0 10px; font-size: 1.1rem; text-align: center; display: block; }
-.drag-handle:active { cursor: grabbing; color: var(--accent); }
-.dragging { opacity: 0.5; background: #e2e8f0; }
-
-.total-box { margin-top: 20px; text-align: right; font-size: 1.4rem; font-weight: bold; color: #166534; padding: 15px; background: #f0fdf4; border: 1px solid #166534; }
-
-/* Modules Nav (Admin) */
 .modules-buttons { display: flex; gap: 20px; }
 .btn-module {
     flex: 1; background: white; border: 1px solid #e2e8f0; padding: 20px;
     border-radius: 12px; display: flex; flex-direction: column; gap: 10px;
     cursor: pointer; transition: all 0.2s;
 }
-.btn-module i { font-size: 1.5rem; color: var(--accent); }
-.btn-module span { font-weight: 600; color: var(--primary); }
 .btn-module:hover { border-color: var(--accent); transform: translateY(-2px); }
+.btn-module i { font-size: 1.5rem; color: var(--accent); }
 .module-banner {
     background: var(--primary-dark); color: white; padding: 20px;
     border-radius: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;
 }
-.btn-back {
-    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-    color: white; padding: 6px 14px; border-radius: 20px; cursor: pointer;
-}
+.btn-back { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px 14px; border-radius: 20px; cursor: pointer; }
 .divider { display: flex; align-items: center; margin: 15px 0; color: #cbd5e1; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
 .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #e2e8f0; }
 .divider span { padding: 0 10px; color: #94a3b8; }
-
-/* Responsive */
-@media (max-width: 768px) {
-    .grid-form, .header-grid { grid-template-columns: 1fr; }
-    .span-2 { grid-column: auto; }
-    .header-container { flex-direction: column; text-align: center; }
-    .tab-navigation { flex-direction: column; }
-}
 
 /* =========================================
    7. MODALE (CHANGEMENT MOT DE PASSE)
    ========================================= */
 .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.5); z-index: 1000;
+    background: rgba(0, 0, 0, 0.5); z-index: 11000; /* Plus haut que le login au cas où */
     display: flex; justify-content: center; align-items: center;
 }
 .modal-box {
@@ -262,3 +241,8 @@ tr.section-row input { font-weight: bold; color: #9a3412; text-transform: upperc
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 .modal-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; color: #1e293b; }
+
+@media (max-width: 768px) {
+    .grid-form, .header-container, .tab-navigation, .modules-buttons { flex-direction: column; grid-template-columns: 1fr; }
+    .span-2 { grid-column: auto; }
+}
