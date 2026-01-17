@@ -247,6 +247,7 @@ tr.section-row input { font-weight: bold; color: #9a3412; text-transform: upperc
     .header-container { flex-direction: column; text-align: center; }
     .tab-navigation { flex-direction: column; }
 }
+
 /* =========================================
    7. MODALE (CHANGEMENT MOT DE PASSE)
    ========================================= */

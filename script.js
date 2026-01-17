@@ -3,10 +3,10 @@
    ========================================================================== */
 import { db, auth } from './js/config.js';
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { chargerLogoBase64, getVal } from './js/utils.js';
 import { genererPouvoir, genererDeclaration, genererDemandeInhumation, genererDemandeCremation, genererDemandeRapatriement, genererDemandeFermetureMairie, genererDemandeOuverture, genererFermeture, genererTransport } from './js/pdf_admin.js';
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
 // ATTACHER LES FONCTIONS AU WINDOW POUR LES BOUTONS HTML
 window.genererPouvoir = genererPouvoir;
 window.genererDeclaration = genererDeclaration;
@@ -20,81 +20,61 @@ window.genererTransport = genererTransport;
 
 let currentDocId = null;
 
-// --- AUTH ---
+/* ==========================================================================
+   1. AUTHENTIFICATION & NAVIGATION
+   ========================================================================== */
+
+// Connexion
 window.loginFirebase = function() {
     const email = document.getElementById('email-input').value;
     const password = document.getElementById('password-input').value;
+    const btn = document.querySelector('.btn-login');
+    const errorMsg = document.getElementById('login-error');
+
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ...';
+
     signInWithEmailAndPassword(auth, email, password)
         .then(() => {
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('hub-accueil').classList.remove('hidden');
         })
-        .catch((e) => { alert("Erreur connexion: " + e.message); });
-};
-/* ==========================================================================
-   GESTION MOT DE PASSE
-   ========================================================================== */
-
-// Ouvrir la fenêtre
-window.ouvrirModalMdp = function() {
-    document.getElementById('modal-mdp').classList.remove('hidden');
-    document.getElementById('new-password').value = ""; // Vider le champ
+        .catch((error) => {
+            console.error("Erreur Auth:", error);
+            errorMsg.style.display = 'block';
+            btn.innerHTML = 'Connexion <i class="fas fa-arrow-right"></i>';
+        });
 };
 
-// Fermer la fenêtre
-window.fermerModalMdp = function() {
-    document.getElementById('modal-mdp').classList.add('hidden');
+// Déconnexion
+window.logout = function() {
+    signOut(auth).then(() => {
+        window.location.href = "index.html"; 
+    }).catch((error) => console.error(error));
 };
 
-// Valider le changement
-window.validerNouveauMdp = async function() {
-    const newPass = document.getElementById('new-password').value;
-    
-    if (newPass.length < 6) {
-        alert("Le mot de passe doit contenir au moins 6 caractères.");
-        return;
-    }
-
-    const user = auth.currentUser;
-    if (user) {
-        try {
-            await updatePassword(user, newPass);
-            alert("Mot de passe modifié avec succès !");
-            window.fermerModalMdp();
-        } catch (error) {
-            console.error(error);
-            if (error.code === 'auth/requires-recent-login') {
-                alert("Par sécurité, veuillez vous déconnecter et vous reconnecter avant de modifier votre mot de passe.");
-                window.logout();
-            } else {
-                alert("Erreur : " + error.message);
-            }
-        }
-    } else {
-        alert("Aucun utilisateur connecté.");
-    }
-};
-window.logout = function() { signOut(auth).then(() => window.location.href = "index.html"); };
-
+// Surveillance de l'état connecté
 onAuthStateChanged(auth, (user) => {
     if (user) {
         document.getElementById('login-screen').style.display = 'none';
         
-        // DETECTION RETOUR DEPUIS FACTURATION
+        // GESTION DU RETOUR DEPUIS FACTURATION (Paramètre ?open_id=...)
         const urlParams = new URLSearchParams(window.location.search);
         const openId = urlParams.get('open_id');
+        
         if(openId) {
             document.getElementById('hub-accueil').classList.add('hidden');
             document.getElementById('app-content').classList.remove('hidden');
             window.openTab('tab-dossier');
-            setTimeout(() => window.chargerDossier(openId), 500);
+            setTimeout(() => window.chargerDossier(openId), 500); 
         } else {
-            if(document.getElementById('hub-accueil')) document.getElementById('hub-accueil').classList.remove('hidden');
+            if(document.getElementById('hub-accueil')) {
+                document.getElementById('hub-accueil').classList.remove('hidden');
+            }
         }
     }
 });
 
-// --- NAVIGATION ---
+// Ouvrir une Application depuis le Hub
 window.ouvrirApp = function(type) {
     document.getElementById('hub-accueil').classList.add('hidden');
     if (type === 'admin') {
@@ -105,25 +85,72 @@ window.ouvrirApp = function(type) {
     }
 };
 
+// Retour au Hub
 window.retourHub = function() {
     document.getElementById('app-content').classList.add('hidden');
     document.getElementById('hub-accueil').classList.remove('hidden');
     window.history.pushState({}, document.title, window.location.pathname);
 };
 
-// --- CRUD ---
+/* ==========================================================================
+   2. GESTION DU MOT DE PASSE (MODALE)
+   ========================================================================== */
+
+window.ouvrirModalMdp = function() {
+    document.getElementById('modal-mdp').classList.remove('hidden');
+    document.getElementById('new-password').value = "";
+};
+
+window.fermerModalMdp = function() {
+    document.getElementById('modal-mdp').classList.add('hidden');
+};
+
+window.validerNouveauMdp = async function() {
+    const newPass = document.getElementById('new-password').value;
+    if (newPass.length < 6) {
+        alert("Le mot de passe doit contenir au moins 6 caractères.");
+        return;
+    }
+    const user = auth.currentUser;
+    if (user) {
+        try {
+            await updatePassword(user, newPass);
+            alert("Mot de passe modifié avec succès !");
+            window.fermerModalMdp();
+        } catch (error) {
+            console.error(error);
+            if (error.code === 'auth/requires-recent-login') {
+                alert("Par sécurité, veuillez vous reconnecter avant de modifier le mot de passe.");
+                window.logout();
+            } else {
+                alert("Erreur : " + error.message);
+            }
+        }
+    } else {
+        alert("Erreur : Utilisateur non connecté.");
+    }
+};
+
+/* ==========================================================================
+   3. GESTION ADMINISTRATIVE (CRUD)
+   ========================================================================== */
+
+// Sauvegarder
 window.sauvegarderClient = async function() {
     const btn = document.querySelector('.btn-green');
+    const originalText = btn.innerHTML;
     btn.innerHTML = 'Envoi...';
+    
     try {
         const data = {};
         document.querySelectorAll('input, select').forEach(el => {
-            if(el.id) {
+            if(el.id && el.type !== 'submit' && el.type !== 'button') {
                 if(el.type === 'checkbox') data[el.id] = el.checked;
                 else if(el.type === 'radio') { if(el.checked) data[el.name] = el.value; }
                 else data[el.id] = el.value;
             }
         });
+        
         data.lastModified = new Date().toISOString();
         if(!data.dateCreation) data.dateCreation = new Date().toISOString();
 
@@ -133,33 +160,40 @@ window.sauvegarderClient = async function() {
         } else {
             const docRef = await addDoc(collection(db, "dossiers_clients"), data);
             currentDocId = docRef.id;
-            alert("Dossier créé !");
+            alert("Nouveau dossier créé !");
         }
         document.getElementById('current-client-name').textContent = (data.nom || "") + " " + (data.prenom || "");
-    } catch (e) { alert("Erreur : " + e.message); }
-    btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer';
+        
+    } catch (e) { alert("Erreur sauvegarde : " + e.message); }
+    btn.innerHTML = originalText;
 };
 
+// Rechercher
 window.rechercherDossier = async function() {
     const searchVal = document.getElementById('search-input').value.toLowerCase();
     const tbody = document.getElementById('clients-list-body');
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Chargement...</td></tr>';
+    
     try {
         const q = query(collection(db, "dossiers_clients"), orderBy("lastModified", "desc"));
         const querySnapshot = await getDocs(q);
         tbody.innerHTML = '';
+        
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             const fullName = `${data.nom || ''} ${data.prenom || ''}`.toLowerCase();
+            
             if (fullName.includes(searchVal)) {
                 const tr = document.createElement('tr');
+                const dateD = data.date_deces ? data.date_deces.split('-').reverse().join('/') : '-';
+                
                 tr.innerHTML = `
                     <td style="font-weight:bold;">${data.nom || ''} ${data.prenom || ''}</td>
-                    <td>${data.date_deces || '-'}</td>
+                    <td>${dateD}</td>
                     <td>${data.prestation || '-'}</td>
                     <td style="display:flex; gap:5px;">
-                        <button class="btn-outline" style="padding:5px 10px;" onclick="window.chargerDossier('${doc.id}')" title="Modifier Dossier"><i class="fas fa-folder-open"></i></button>
-                        <button class="btn-purple" style="padding:5px 10px; border:none; border-radius:4px; color:white; cursor:pointer;" onclick="window.location.href='facturation.html?id=${doc.id}'" title="Créer Facture"><i class="fas fa-euro-sign"></i></button>
+                        <button class="btn-outline" style="padding:5px 10px;" onclick="window.chargerDossier('${doc.id}')" title="Ouvrir"><i class="fas fa-folder-open"></i></button>
+                        <button class="btn-purple" style="padding:5px 10px; border:none; border-radius:4px; color:white; cursor:pointer;" onclick="window.location.href='facturation.html?id=${doc.id}'" title="Facturer"><i class="fas fa-euro-sign"></i></button>
                         <button class="btn-red" style="padding:5px 10px; border:1px solid #fca5a5; background:#fee2e2; color:#dc2626; border-radius:4px; cursor:pointer;" onclick="window.supprimerClient('${doc.id}')" title="Supprimer"><i class="fas fa-trash"></i></button>
                     </td>
                 `;
@@ -170,15 +204,17 @@ window.rechercherDossier = async function() {
     } catch (e) { tbody.innerHTML = `<tr><td colspan="5">Erreur connexion</td></tr>`; }
 };
 
+// Supprimer
 window.supprimerClient = async function(id) {
-    if(confirm("SUPPRIMER CE DOSSIER CLIENT DÉFINITIVEMENT ?")) {
+    if(confirm("ATTENTION : Supprimer ce dossier définitivement ?")) {
         try {
             await deleteDoc(doc(db, "dossiers_clients", id));
             window.rechercherDossier();
-        } catch(e) { alert("Erreur suppression: " + e.message); }
+        } catch (e) { alert("Erreur suppression"); }
     }
 };
 
+// Charger
 window.chargerDossier = async function(id) {
     try {
         const docRef = doc(db, "dossiers_clients", id);
@@ -210,13 +246,16 @@ window.resetDossier = function() {
     if(confirm("Vider le formulaire ?")) {
         currentDocId = null;
         document.querySelectorAll('input').forEach(i => i.value = '');
-        document.getElementById('faita').value = "Perpignan";
+        if(document.getElementById('faita')) document.getElementById('faita').value = "Perpignan";
         document.getElementById('current-client-name').textContent = "Nouveau";
         window.openTab('tab-dossier');
     }
 };
 
-// --- UI HELPERS ---
+/* ==========================================================================
+   4. UI HELPERS
+   ========================================================================== */
+
 window.openTab = function(tabName) {
     const contents = document.getElementsByClassName("tab-content");
     for (let i = 0; i < contents.length; i++) contents[i].classList.remove("active", "hidden");

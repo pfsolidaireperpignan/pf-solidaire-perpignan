@@ -33,14 +33,7 @@
     <div id="hub-accueil" class="main-wrapper hidden" style="text-align:center; margin-top:80px;">
         <img src="Logo.png" alt="Logo" style="height:100px; margin-bottom:20px;">
         <h1 class="brand-title" style="margin-bottom:40px;">Bienvenue, que souhaitez-vous faire ?</h1>
-        <div style="margin-top:50px; display:flex; gap:15px; justify-content:center;">
-            <button onclick="window.ouvrirModalMdp()" class="btn btn-outline" style="border-color:#cbd5e1;">
-                <i class="fas fa-key"></i> Modifier mot de passe
-            </button>
-            <button onclick="window.logout()" class="btn btn-red">
-                <i class="fas fa-power-off"></i> Se déconnecter
-            </button>
-        </div>
+        
         <div class="hub-buttons-container">
             <div class="hub-card" onclick="window.ouvrirApp('admin')">
                 <div class="hub-icon"><i class="fas fa-folder-open"></i></div>
@@ -54,8 +47,13 @@
             </div>
         </div>
         
-        <div style="margin-top:50px;">
-            <button onclick="window.logout()" class="btn btn-outline">Se déconnecter</button>
+        <div style="margin-top:50px; display:flex; gap:15px; justify-content:center;">
+            <button onclick="window.ouvrirModalMdp()" class="btn btn-outline" style="border-color:#cbd5e1;">
+                <i class="fas fa-key"></i> Modifier mot de passe
+            </button>
+            <button onclick="window.logout()" class="btn btn-red">
+                <i class="fas fa-power-off"></i> Se déconnecter
+            </button>
         </div>
     </div>
 
@@ -356,6 +354,7 @@
         </div>
 
     </div>
+    
     <div id="modal-mdp" class="modal-overlay hidden">
         <div class="modal-box">
             <h3 class="modal-title">Nouveau mot de passe</h3>
@@ -369,6 +368,7 @@
             </div>
         </div>
     </div>
+
     <script type="module" src="script.js"></script>
 </body>
 </html>
